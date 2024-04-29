@@ -134,9 +134,7 @@ func (r *DomainRepo) GetByName(ctx context.Context, domainName, tenantID string)
 		Select(`
         name,
 				domain_suffix,
-				provisioning_cert,
 				provisioning_cert_storage_format,
-				provisioning_cert_key,
 				tenant_id,
         CAST(xmin as text) as xmin
     `).
@@ -151,7 +149,7 @@ func (r *DomainRepo) GetByName(ctx context.Context, domainName, tenantID string)
 
 	d := entity.Domain{}
 
-	err = row.Scan(&d.ProfileName, &d.DomainSuffix, &d.ProvisioningCert, &d.ProvisioningCertStorageFormat, &d.ProvisioningCertPassword, &d.TenantID, &d.Version)
+	err = row.Scan(&d.ProfileName, &d.DomainSuffix, &d.ProvisioningCertStorageFormat, &d.TenantID, &d.Version)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.New(postgres.NotFound)

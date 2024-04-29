@@ -1,11 +1,13 @@
 package v1
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
+	"github.com/jackc/pgconn"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase"
@@ -135,12 +137,36 @@ func (r *domainRoutes) insert(c *gin.Context) {
 	_, err := r.t.Insert(c.Request.Context(), &domain)
 	if err != nil {
 		r.l.Error(err, "http - v1 - insert")
+
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == postgres.UniqueViolation {
+				errorResponse(c, http.StatusBadRequest, pgErr.Message)
+			}
+
+			return
+		}
+
 		errorResponse(c, http.StatusInternalServerError, "database problems")
 
 		return
 	}
 
-	c.JSON(http.StatusCreated, domain)
+	item, err := r.t.GetByName(c.Request.Context(), domain.ProfileName, "")
+	if err != nil {
+
+		if err.Error() == postgres.NotFound {
+			r.l.Error(err, "Domain "+domain.ProfileName+" not found")
+			errorResponse(c, http.StatusNotFound, "domain not found")
+		} else {
+			r.l.Error(err, "http - v1 - getByName")
+			errorResponse(c, http.StatusInternalServerError, "database problems")
+		}
+
+		return
+	}
+
+	c.JSON(http.StatusCreated, item)
 }
 
 // @Summary     Edit Domain
