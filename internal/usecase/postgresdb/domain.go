@@ -154,7 +154,7 @@ func (r *DomainRepo) GetByName(ctx context.Context, domainName, tenantID string)
 	err = row.Scan(&d.ProfileName, &d.DomainSuffix, &d.ProvisioningCert, &d.ProvisioningCertStorageFormat, &d.ProvisioningCertPassword, &d.TenantID, &d.Version)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+			return nil, errors.New(postgres.NotFound)
 		}
 
 		return nil, fmt.Errorf("DomainRepo - GetByName - row.Scan: %w", err)

@@ -172,7 +172,7 @@ func (r *ProfileRepo) GetByName(ctx context.Context, profileName, tenantID strin
 	}
 
 	if len(profiles) == 0 {
-		return entity.Profile{}, fmt.Errorf("ProfileRepo - GetByName - Not Found: %w", err)
+		return entity.Profile{}, errors.New(postgres.NotFound)
 	}
 
 	return profiles[0], nil

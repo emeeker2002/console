@@ -3,7 +3,6 @@ package v1
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgconn"
@@ -76,9 +75,9 @@ func (r *ciraConfigRoutes) getByName(c *gin.Context) {
 
 	foundConfig, err := r.cira.GetByName(c.Request.Context(), configName, "")
 	if err != nil {
-		if strings.Contains(err.Error(), "Not Found") {
+		if err.Error() == postgres.NotFound {
 			r.l.Error(err, "CIRA Config "+configName+" not found")
-			errorResponse(c, http.StatusNotFound, "database problems")
+			errorResponse(c, http.StatusNotFound, "Not Found")
 		} else {
 			r.l.Error(err, "http - CIRA configs - v1 - getByName")
 			errorResponse(c, http.StatusInternalServerError, "database problems")

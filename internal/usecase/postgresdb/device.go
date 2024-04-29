@@ -148,7 +148,7 @@ func (r *DeviceRepo) GetByID(ctx context.Context, guid, tenantID string) (entity
 	}
 
 	if len(devices) == 0 {
-		return entity.Device{}, nil
+		return entity.Device{}, errors.New(postgres.NotFound)
 	}
 
 	return devices[0], nil

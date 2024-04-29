@@ -3,7 +3,6 @@ package v1
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgconn"
@@ -76,9 +75,9 @@ func (r *ieee8021xConfigRoutes) getByName(c *gin.Context) {
 
 	config, err := r.t.GetByName(c.Request.Context(), configName, "")
 	if err != nil {
-		if strings.Contains(err.Error(), "Not Found") {
+		if err.Error() == postgres.NotFound {
 			r.l.Error(err, "IEEE8021x Config "+configName+" not found")
-			errorResponse(c, http.StatusNotFound, "database problems")
+			errorResponse(c, http.StatusNotFound, "Config not found")
 		} else {
 			r.l.Error(err, "http - IEEE8021x configs - v1 - getByName")
 			errorResponse(c, http.StatusInternalServerError, "database problems")

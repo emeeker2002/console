@@ -8,6 +8,7 @@ import (
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/open-amt-cloud-toolkit/console/pkg/postgres"
 )
 
 type profileRoutes struct {
@@ -86,8 +87,13 @@ func (pr *profileRoutes) getByName(c *gin.Context) {
 
 	item, err := pr.t.GetByName(c.Request.Context(), profile.ProfileName, "")
 	if err != nil {
-		pr.l.Error(err, "http - profiles - v1 - getByName")
-		errorResponse(c, http.StatusInternalServerError, "database problems")
+		if err.Error() == postgres.NotFound {
+			pr.l.Error(err, "Profile "+profile.ProfileName+" not found")
+			errorResponse(c, http.StatusNotFound, "Profile not found")
+		} else {
+			pr.l.Error(err, "http - profiles - v1 - getByName")
+			errorResponse(c, http.StatusInternalServerError, "database problems")
+		}
 
 		return
 	}

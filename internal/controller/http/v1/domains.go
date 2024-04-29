@@ -10,6 +10,7 @@ import (
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/open-amt-cloud-toolkit/console/pkg/postgres"
 )
 
 type domainRoutes struct {
@@ -99,8 +100,14 @@ func (r *domainRoutes) getByName(c *gin.Context) {
 
 	item, err := r.t.GetByName(c.Request.Context(), name, "")
 	if err != nil {
-		r.l.Error(err, "http - v1 - getByName")
-		errorResponse(c, http.StatusInternalServerError, "database problems")
+
+		if err.Error() == postgres.NotFound {
+			r.l.Error(err, "Domain "+name+" not found")
+			errorResponse(c, http.StatusNotFound, "domain not found")
+		} else {
+			r.l.Error(err, "http - v1 - getByName")
+			errorResponse(c, http.StatusInternalServerError, "database problems")
+		}
 
 		return
 	}
@@ -133,7 +140,7 @@ func (r *domainRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, domain)
+	c.JSON(http.StatusCreated, domain)
 }
 
 // @Summary     Edit Domain

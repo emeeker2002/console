@@ -145,7 +145,7 @@ func (r *CIRARepo) GetByName(ctx context.Context, configName, tenantID string) (
 	}
 
 	if len(configs) == 0 {
-		return entity.CIRAConfig{}, fmt.Errorf("CIRARepo - GetByName - NotFound: %w", err)
+		return entity.CIRAConfig{}, errors.New(postgres.NotFound)
 	}
 
 	return configs[0], nil

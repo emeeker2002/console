@@ -3,7 +3,6 @@ package v1
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgconn"
@@ -76,9 +75,9 @@ func (r *WirelessConfigRoutes) getByName(c *gin.Context) {
 
 	config, err := r.t.GetByName(c.Request.Context(), profileName, "")
 	if err != nil {
-		if strings.Contains(err.Error(), "Not Found") {
+		if err.Error() == postgres.NotFound {
 			r.l.Error(err, "wireless Config "+profileName+" not found")
-			errorResponse(c, http.StatusNotFound, "database problems")
+			errorResponse(c, http.StatusNotFound, "Config not found")
 		} else {
 			r.l.Error(err, "http - wireless configs - v1 - getByName")
 			errorResponse(c, http.StatusInternalServerError, "database problems")

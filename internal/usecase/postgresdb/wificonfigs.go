@@ -167,7 +167,7 @@ func (r *WirelessRepo) GetByName(ctx context.Context, profileName, tenantID stri
 	}
 
 	if len(wirelessConfigs) == 0 {
-		return entity.WirelessConfig{}, fmt.Errorf("WirelessRepo - GetByName - Not Found: %w", err)
+		return entity.WirelessConfig{}, errors.New(postgres.NotFound)
 	}
 
 	return wirelessConfigs[0], nil

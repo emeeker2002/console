@@ -157,7 +157,7 @@ func (r *IEEE8021xRepo) GetByName(ctx context.Context, profileName, tenantID str
 	}
 
 	if len(ieee8021xConfigs) == 0 {
-		return entity.IEEE8021xConfig{}, nil
+		return entity.IEEE8021xConfig{}, errors.New(postgres.NotFound)
 	}
 
 	return ieee8021xConfigs[0], nil
