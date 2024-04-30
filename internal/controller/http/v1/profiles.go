@@ -117,7 +117,7 @@ func (pr *profileRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, profile)
+	c.JSON(http.StatusCreated, profile)
 }
 
 func (pr *profileRoutes) update(c *gin.Context) {
