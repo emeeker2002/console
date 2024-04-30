@@ -1,13 +1,11 @@
 package v1
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase"
@@ -138,21 +136,16 @@ func (r *domainRoutes) insert(c *gin.Context) {
 	if err != nil {
 		r.l.Error(err, "http - v1 - insert")
 
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == postgres.UniqueViolation {
-				errorResponse(c, http.StatusBadRequest, pgErr.Message)
-
-				return
-			}
+		if unique, errMsg := postgres.CheckUnique(err); !unique {
+			errorResponse(c, http.StatusBadRequest, errMsg)
+		} else {
+			errorResponse(c, http.StatusInternalServerError, "database problems")
 		}
-
-		errorResponse(c, http.StatusInternalServerError, "database problems")
 
 		return
 	}
 
-	item, err := r.t.GetByName(c.Request.Context(), domain.ProfileName, "")
+	storedDomain, err := r.t.GetByName(c.Request.Context(), domain.ProfileName, "")
 	if err != nil {
 
 		if err.Error() == postgres.NotFound {
@@ -166,7 +159,7 @@ func (r *domainRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, item)
+	c.JSON(http.StatusCreated, storedDomain)
 }
 
 // @Summary     Edit Domain
@@ -186,15 +179,41 @@ func (r *domainRoutes) update(c *gin.Context) {
 		return
 	}
 
-	updateSuccessful, err := r.t.Update(c.Request.Context(), &domain)
-	if err != nil || !updateSuccessful {
+	domainFound, err := r.t.Update(c.Request.Context(), &domain)
+	if err != nil {
 		r.l.Error(err, "http - v1 - update")
-		errorResponse(c, http.StatusInternalServerError, "database problems")
+
+		if unique, errMsg := postgres.CheckUnique(err); !unique {
+			errorResponse(c, http.StatusBadRequest, errMsg)
+		} else {
+			errorResponse(c, http.StatusInternalServerError, "database problems")
+		}
 
 		return
 	}
 
-	c.JSON(http.StatusOK, domain)
+	if !domainFound {
+		r.l.Error(err, "http - v1 - update")
+		errorResponse(c, http.StatusNotFound, "domain not found")
+
+		return
+	}
+
+	storedDomain, err := r.t.GetByName(c.Request.Context(), domain.ProfileName, "")
+	if err != nil {
+
+		if err.Error() == postgres.NotFound {
+			r.l.Error(err, "Domain "+domain.ProfileName+" not found")
+			errorResponse(c, http.StatusNotFound, "domain not found")
+		} else {
+			r.l.Error(err, "http - v1 - getByName")
+			errorResponse(c, http.StatusInternalServerError, "database problems")
+		}
+
+		return
+	}
+
+	c.JSON(http.StatusOK, storedDomain)
 }
 
 // @Summary     Remove Domains
@@ -215,6 +234,11 @@ func (r *domainRoutes) delete(c *gin.Context) {
 		errorResponse(c, http.StatusInternalServerError, "database problems")
 
 		return
+	}
+
+	if !deleteSuccessful {
+		r.l.Error(err, "http - v1 - delete")
+		errorResponse(c, http.StatusNotFound, "domain not found")
 	}
 
 	c.JSON(http.StatusNoContent, deleteSuccessful)
