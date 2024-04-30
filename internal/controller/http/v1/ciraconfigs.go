@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase"
@@ -105,9 +105,9 @@ func (r *ciraConfigRoutes) insert(c *gin.Context) {
 		if errors.As(err, &pgErr) {
 			if pgErr.Code == postgres.UniqueViolation {
 				errorResponse(c, http.StatusBadRequest, pgErr.Message)
-			}
 
-			return
+				return
+			}
 		}
 
 		errorResponse(c, http.StatusInternalServerError, "database problems")
