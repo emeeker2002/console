@@ -123,18 +123,16 @@ func determinePowerCapabilities(amtversion int, capabilities boot.BootCapabiliti
 func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dto.BootSetting) (power.PowerActionResponse, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil || item.GUID == "" {
-		return power.PowerActionResponse{}, nil
+		return power.PowerActionResponse{}, err
 	}
 
 	uc.device.SetupWsmanClient(item, true)
 
-	// bootData, err := r.t.GetBootData()
+	// bootData, err := uc.device.GetBootData()
 	// if err != nil {
-	// 	r.l.Error(err, "http - v1 - setBootOptions")
-	// 	errorResponse(c, http.StatusInternalServerError, "amt problems")
-
-	// 	return
+	// 	return power.PowerActionResponse{}, err
 	// }
+
 	newData := boot.BootSettingDataRequest{
 		UseSOL:                 bootSetting.UseSOL,
 		UseSafeMode:            false,
