@@ -241,12 +241,16 @@ func (r *ProfileRepo) Insert(ctx context.Context, p *entity.Profile) (string, er
 
 	ieee8021xProfileName := p.Ieee8021xProfileName
 
-	if *p.CIRAConfigName == "" {
-		ciraConfigName = nil
+	if p.CIRAConfigName != nil {
+		if *p.CIRAConfigName == "" {
+			ciraConfigName = nil
+		}
 	}
 
-	if *p.Ieee8021xProfileName == "" {
-		ieee8021xProfileName = nil
+	if p.Ieee8021xProfileName != nil {
+		if *p.Ieee8021xProfileName == "" {
+			ieee8021xProfileName = nil
+		}
 	}
 
 	sqlQuery, args, err := r.Builder.
