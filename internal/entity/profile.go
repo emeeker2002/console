@@ -2,7 +2,7 @@ package entity
 
 type Profile struct {
 	ProfileName                string               `json:"profileName,omitempty" binding:"required" example:"My Profile"`
-	AMTPassword                string               `json:"amtPassword,omitempty" binding:"required_without=GenerateRandomPassword,min=8,max=32" example:"my_password"`
+	AMTPassword                string               `json:"amtPassword,omitempty" binding:"required_without=GenerateRandomPassword,len=0|min=8,max=32" example:"my_password"`
 	CreationDate               string               `json:"creationDate,omitempty" example:"2021-07-01T00:00:00Z"`
 	CreatedBy                  string               `json:"created_by,omitempty" example:"admin"`
 	GenerateRandomPassword     bool                 `json:"generateRandomPassword,omitempty" example:"true"`
