@@ -1,11 +1,9 @@
 package v1
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgconn"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase"
@@ -101,16 +99,11 @@ func (r *WirelessConfigRoutes) insert(c *gin.Context) {
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - insert")
 
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == postgres.UniqueViolation {
-				errorResponse(c, http.StatusBadRequest, pgErr.Message)
-			}
-
-			return
+		if unique, errMsg := postgres.CheckUnique(err); !unique {
+			errorResponse(c, http.StatusBadRequest, errMsg)
+		} else {
+			errorResponse(c, http.StatusInternalServerError, "database problems")
 		}
-
-		errorResponse(c, http.StatusInternalServerError, "database problems")
 
 		return
 	}

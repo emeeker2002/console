@@ -1,11 +1,9 @@
 package v1
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase"
@@ -77,7 +75,7 @@ func (r *ciraConfigRoutes) getByName(c *gin.Context) {
 	if err != nil {
 		if err.Error() == postgres.NotFound {
 			r.l.Error(err, "CIRA Config "+configName+" not found")
-			errorResponse(c, http.StatusNotFound, "Not Found")
+			errorResponse(c, http.StatusNotFound, "cira config not found")
 		} else {
 			r.l.Error(err, "http - CIRA configs - v1 - getByName")
 			errorResponse(c, http.StatusInternalServerError, "database problems")
@@ -101,16 +99,11 @@ func (r *ciraConfigRoutes) insert(c *gin.Context) {
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - insert")
 
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == postgres.UniqueViolation {
-				errorResponse(c, http.StatusBadRequest, pgErr.Message)
-
-				return
-			}
+		if unique, errMsg := postgres.CheckUnique(err); !unique {
+			errorResponse(c, http.StatusBadRequest, errMsg)
+		} else {
+			errorResponse(c, http.StatusInternalServerError, "database problems")
 		}
-
-		errorResponse(c, http.StatusInternalServerError, "database problems")
 
 		return
 	}
