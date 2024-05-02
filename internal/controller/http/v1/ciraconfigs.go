@@ -95,7 +95,7 @@ func (r *ciraConfigRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	version, err := r.cira.Insert(c.Request.Context(), &config)
+	_, err := r.cira.Insert(c.Request.Context(), &config)
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - insert")
 
@@ -108,7 +108,21 @@ func (r *ciraConfigRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, version)
+	storedConfig, err := r.cira.GetByName(c.Request.Context(), config.ConfigName, "")
+	if err != nil {
+
+		if err.Error() == postgres.NotFound {
+			r.l.Error(err, "config "+config.ConfigName+" not found")
+			errorResponse(c, http.StatusNotFound, "config not found")
+		} else {
+			r.l.Error(err, "http - v1 - getByName")
+			errorResponse(c, http.StatusInternalServerError, "database problems")
+		}
+
+		return
+	}
+
+	c.JSON(http.StatusCreated, storedConfig)
 }
 
 func (r *ciraConfigRoutes) update(c *gin.Context) {

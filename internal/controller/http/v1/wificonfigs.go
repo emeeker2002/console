@@ -95,7 +95,7 @@ func (r *WirelessConfigRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	version, err := r.t.Insert(c.Request.Context(), &config)
+	_, err := r.t.Insert(c.Request.Context(), &config)
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - insert")
 
@@ -108,7 +108,21 @@ func (r *WirelessConfigRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, version)
+	storedConfig, err := r.t.GetByName(c.Request.Context(), config.ProfileName, "")
+	if err != nil {
+
+		if err.Error() == postgres.NotFound {
+			r.l.Error(err, "wifi profile "+config.ProfileName+" not found")
+			errorResponse(c, http.StatusNotFound, "wifi profile not found")
+		} else {
+			r.l.Error(err, "http - v1 - getByName")
+			errorResponse(c, http.StatusInternalServerError, "database problems")
+		}
+
+		return
+	}
+
+	c.JSON(http.StatusCreated, storedConfig)
 }
 
 func (r *WirelessConfigRoutes) update(c *gin.Context) {
@@ -119,7 +133,7 @@ func (r *WirelessConfigRoutes) update(c *gin.Context) {
 		return
 	}
 
-	configs, err := r.t.Update(c.Request.Context(), &config)
+	successfulUpdate, err := r.t.Update(c.Request.Context(), &config)
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - update")
 		errorResponse(c, http.StatusInternalServerError, "database problems")
@@ -127,13 +141,34 @@ func (r *WirelessConfigRoutes) update(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, configs)
+	storedConfig, err := r.t.GetByName(c.Request.Context(), config.ProfileName, "")
+	if err != nil {
+
+		if err.Error() == postgres.NotFound {
+			r.l.Error(err, "wireless config "+config.ProfileName+" not found")
+			errorResponse(c, http.StatusNotFound, "wireless config not found")
+		} else {
+			r.l.Error(err, "http - v1 - getByName")
+			errorResponse(c, http.StatusInternalServerError, "database problems")
+		}
+
+		return
+	}
+
+	if !successfulUpdate {
+		r.l.Error(err, "http - wireless configs - v1 - update")
+		errorResponse(c, http.StatusBadRequest, "wireless config unchanged")
+
+		return
+	}
+
+	c.JSON(http.StatusOK, storedConfig)
 }
 
 func (r *WirelessConfigRoutes) delete(c *gin.Context) {
 	configName := c.Param("profileName")
 
-	configs, err := r.t.Delete(c.Request.Context(), configName, "")
+	deleteSuccessful, err := r.t.Delete(c.Request.Context(), configName, "")
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - delete")
 		errorResponse(c, http.StatusInternalServerError, "database problems")
@@ -141,5 +176,10 @@ func (r *WirelessConfigRoutes) delete(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusNoContent, configs)
+	if !deleteSuccessful {
+		r.l.Error(err, "http - wireless configs - v1 - delete")
+		errorResponse(c, http.StatusNotFound, "wireless config not found")
+	}
+
+	c.JSON(http.StatusNoContent, deleteSuccessful)
 }

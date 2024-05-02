@@ -133,7 +133,6 @@ func (r *WirelessRepo) GetByName(ctx context.Context, profileName, tenantID stri
 			encryption_method,
 			ssid,
 			psk_value,
-			psk_passphrase,
 			link_policy,
 			tenant_id,
 			ieee8021x_profile_name,
@@ -158,7 +157,7 @@ func (r *WirelessRepo) GetByName(ctx context.Context, profileName, tenantID stri
 	for rows.Next() {
 		p := entity.WirelessConfig{}
 
-		err = rows.Scan(&p.ProfileName, &p.AuthenticationMethod, &p.EncryptionMethod, &p.SSID, &p.PSKValue, &p.PSKPassphrase, &p.LinkPolicy, &p.TenantID, &p.IEEE8021xProfileName, &p.Version)
+		err = rows.Scan(&p.ProfileName, &p.AuthenticationMethod, &p.EncryptionMethod, &p.SSID, &p.PSKValue, &p.LinkPolicy, &p.TenantID, &p.IEEE8021xProfileName, &p.Version)
 		if err != nil {
 			return p, fmt.Errorf("WirelessRepo - GetByName - rows.Scan: %w", err)
 		}

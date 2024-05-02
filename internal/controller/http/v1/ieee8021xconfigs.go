@@ -95,7 +95,7 @@ func (r *ieee8021xConfigRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	version, err := r.t.Insert(c.Request.Context(), &config)
+	_, err := r.t.Insert(c.Request.Context(), &config)
 	if err != nil {
 		r.l.Error(err, "http - IEEE8021x configs - v1 - insert")
 
@@ -108,7 +108,21 @@ func (r *ieee8021xConfigRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, version)
+	storedConfig, err := r.t.GetByName(c.Request.Context(), config.ProfileName, "")
+	if err != nil {
+
+		if err.Error() == postgres.NotFound {
+			r.l.Error(err, "IEEE8021x config "+config.ProfileName+" not found")
+			errorResponse(c, http.StatusNotFound, "IEEE8021x configs not found")
+		} else {
+			r.l.Error(err, "http - IEEE8021x configs - v1 - getByName")
+			errorResponse(c, http.StatusInternalServerError, "database problems")
+		}
+
+		return
+	}
+
+	c.JSON(http.StatusCreated, storedConfig)
 }
 
 func (r *ieee8021xConfigRoutes) update(c *gin.Context) {
@@ -146,7 +160,7 @@ func (r *ieee8021xConfigRoutes) update(c *gin.Context) {
 func (r *ieee8021xConfigRoutes) delete(c *gin.Context) {
 	configName := c.Param("profileName")
 
-	configs, err := r.t.Delete(c.Request.Context(), configName, "")
+	deleteSuccessful, err := r.t.Delete(c.Request.Context(), configName, "")
 	if err != nil {
 		r.l.Error(err, "http - IEEE8021x configs - v1 - delete")
 		errorResponse(c, http.StatusInternalServerError, "database problems")
@@ -154,5 +168,10 @@ func (r *ieee8021xConfigRoutes) delete(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusNoContent, configs)
+	if !deleteSuccessful {
+		r.l.Error(err, "http - IEEE8021x config - v1 - delete")
+		errorResponse(c, http.StatusNotFound, "IEEE8021x config not found")
+	}
+
+	c.JSON(http.StatusNoContent, deleteSuccessful)
 }
