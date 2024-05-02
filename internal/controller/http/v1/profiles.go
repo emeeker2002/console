@@ -83,7 +83,7 @@ func (pr *profileRoutes) getByName(c *gin.Context) {
 	item, err := pr.t.GetByName(c.Request.Context(), name, "")
 	if err != nil {
 		if err.Error() == postgres.NotFound {
-			pr.l.Error(err, "Profile "+profile.ProfileName+" not found")
+			pr.l.Error(err, "Profile "+name+" not found")
 			errorResponse(c, http.StatusNotFound, "Profile not found")
 		} else {
 			pr.l.Error(err, "http - profiles - v1 - getByName")
