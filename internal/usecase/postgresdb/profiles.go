@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 	"github.com/open-amt-cloud-toolkit/console/pkg/postgres"
 )
 
@@ -15,12 +16,13 @@ import (
 
 type ProfileRepo struct {
 	*postgres.DB
+	log logger.Interface
 }
 
 // New -.
 
-func NewProfileRepo(pg *postgres.DB) *ProfileRepo {
-	return &ProfileRepo{pg}
+func NewProfileRepo(pg *postgres.DB, log logger.Interface) *ProfileRepo {
+	return &ProfileRepo{pg, log}
 }
 
 // GetCount -.
@@ -172,7 +174,7 @@ func (r *ProfileRepo) GetByName(ctx context.Context, profileName, tenantID strin
 	}
 
 	if len(profiles) == 0 {
-		return entity.Profile{}, errors.New(postgres.NotFound)
+		return entity.Profile{}, fmt.Errorf("ProfileRepo - GetByName - Not Found: %w", err)
 	}
 
 	return profiles[0], nil
@@ -219,7 +221,7 @@ func (r *ProfileRepo) Update(ctx context.Context, p *entity.Profile) (bool, erro
 		Set("ieee8021x_profile_name", p.Ieee8021xProfileName).
 		Set("ip_sync_enabled", p.IPSyncEnabled).
 		Set("local_wifi_sync_enabled", p.LocalWifiSyncEnabled).
-		Where("name = ? AND tenant_id = ?", p.ProfileName, p.TenantID).
+		Where("profile_name = ? AND tenant_id = ?", p.ProfileName, p.TenantID).
 		Suffix("AND xmin::text = ?", p.Version).
 		ToSql()
 	if err != nil {
@@ -241,13 +243,13 @@ func (r *ProfileRepo) Insert(ctx context.Context, p *entity.Profile) (string, er
 
 	ieee8021xProfileName := p.Ieee8021xProfileName
 
-	if p.CIRAConfigName != nil {
+	if ciraConfigName != nil {
 		if *p.CIRAConfigName == "" {
 			ciraConfigName = nil
 		}
 	}
 
-	if p.Ieee8021xProfileName != nil {
+	if ieee8021xProfileName != nil {
 		if *p.Ieee8021xProfileName == "" {
 			ieee8021xProfileName = nil
 		}

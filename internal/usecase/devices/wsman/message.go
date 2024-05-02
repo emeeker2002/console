@@ -6,6 +6,7 @@ import (
 
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman"
 	amtAlarmClock "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/alarmclock"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/authorization"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/ethernetport"
@@ -17,13 +18,23 @@ import (
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/timesynchronization"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/tls"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/wifiportconfiguration"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/bios"
 	cimBoot "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/card"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/chassis"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/chip"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/computer"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/concrete"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/mediaaccess"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/models"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/physical"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/processor"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/system"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/client"
 	ipsAlarmClock "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
@@ -33,6 +44,8 @@ import (
 	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto"
 )
 
+var connections map[string]wsman.Messages = make(map[string]wsman.Messages)
+
 type GoWSMANMessages struct {
 	wsmanMessages wsman.Messages
 }
@@ -41,7 +54,7 @@ func NewGoWSMANMessages() *GoWSMANMessages {
 	return &GoWSMANMessages{}
 }
 
-func (g *GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages bool) {
+func (g *GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, logAMTMessages bool) {
 	clientParams := client.Parameters{
 		Target:            device.Hostname,
 		Username:          device.Username,
@@ -50,9 +63,15 @@ func (g *GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages 
 		UseTLS:            device.UseTLS,
 		SelfSignedAllowed: device.AllowSelfSigned,
 		LogAMTMessages:    logAMTMessages,
+		IsRedirection:     isRedirection,
 	}
 
-	g.wsmanMessages = wsman.NewMessages(clientParams)
+	if _, ok := connections[device.GUID]; ok {
+		g.wsmanMessages = connections[device.GUID]
+	} else {
+		connections[device.GUID] = wsman.NewMessages(clientParams)
+		g.wsmanMessages = connections[device.GUID]
+	}
 }
 
 func (g *GoWSMANMessages) GetAMTVersion() ([]software.SoftwareIdentity, error) {
@@ -117,32 +136,13 @@ func (g *GoWSMANMessages) GetFeatures() (interface{}, error) {
 
 func (g *GoWSMANMessages) SetFeatures(features dto.Features) (dto.Features, error) {
 	// redirection
-	requestedState := redirection.DisableIDERAndSOL // 32768
-	listenerEnabled := 0
-
-	if features.EnableIDER {
-		requestedState++
-		listenerEnabled = 1
-	}
-
-	if features.EnableSOL {
-		requestedState += 2
-		listenerEnabled = 1
-	}
-
-	_, err := g.wsmanMessages.AMT.RedirectionService.RequestStateChange(requestedState)
+	requestedState, listenerEnabled, err := configureRedirection(features, g)
 	if err != nil {
 		return features, err
 	}
 
 	// kvm
-	kvmRequestedState := kvm.RedirectionSAP_Disable // disabled
-	if features.EnableKVM {
-		kvmRequestedState = kvm.RedirectionSAP_Enable // enabled
-		listenerEnabled = 1
-	}
-
-	_, err = g.wsmanMessages.CIM.KVMRedirectionSAP.RequestStateChange(kvmRequestedState)
+	listenerEnabled, err = configureKVM(features, listenerEnabled, g)
 	if err != nil {
 		return features, err
 	}
@@ -174,26 +174,13 @@ func (g *GoWSMANMessages) SetFeatures(features dto.Features) (dto.Features, erro
 		return features, err
 	}
 
-	consentCode := optin.OptInRequiredAll // default to all if not valid user consent
-
-	consent := strings.ToLower(features.UserConsent)
-
-	switch consent {
-	case "kvm":
-		consentCode = optin.OptInRequiredKVM
-	case "all":
-		consentCode = optin.OptInRequiredAll
-	case "none":
-		consentCode = optin.OptInRequiredNone
-	}
-
 	optinRequest := optin.OptInServiceRequest{
 		CreationClassName:       optInResponse.Body.GetAndPutResponse.CreationClassName,
 		ElementName:             optInResponse.Body.GetAndPutResponse.ElementName,
 		Name:                    optInResponse.Body.GetAndPutResponse.Name,
 		OptInCodeTimeout:        optInResponse.Body.GetAndPutResponse.OptInCodeTimeout,
 		OptInDisplayTimeout:     optInResponse.Body.GetAndPutResponse.OptInDisplayTimeout,
-		OptInRequired:           int(consentCode),
+		OptInRequired:           determineConsentCode(features.UserConsent),
 		SystemName:              optInResponse.Body.GetAndPutResponse.SystemName,
 		SystemCreationClassName: optInResponse.Body.GetAndPutResponse.SystemCreationClassName,
 	}
@@ -204,6 +191,60 @@ func (g *GoWSMANMessages) SetFeatures(features dto.Features) (dto.Features, erro
 	}
 
 	return features, nil
+}
+
+func configureKVM(features dto.Features, listenerEnabled int, g *GoWSMANMessages) (int, error) {
+	kvmRequestedState := kvm.RedirectionSAP_Disable
+	if features.EnableKVM {
+		kvmRequestedState = kvm.RedirectionSAP_Enable
+		listenerEnabled = 1
+	}
+
+	_, err := g.wsmanMessages.CIM.KVMRedirectionSAP.RequestStateChange(kvmRequestedState)
+	if err != nil {
+		return 0, err
+	}
+
+	return listenerEnabled, nil
+}
+
+func configureRedirection(features dto.Features, g *GoWSMANMessages) (redirection.RequestedState, int, error) {
+	requestedState := redirection.DisableIDERAndSOL
+	listenerEnabled := 0
+
+	if features.EnableIDER {
+		requestedState++
+		listenerEnabled = 1
+	}
+
+	if features.EnableSOL {
+		requestedState += 2
+		listenerEnabled = 1
+	}
+
+	_, err := g.wsmanMessages.AMT.RedirectionService.RequestStateChange(requestedState)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return requestedState, listenerEnabled, err
+}
+
+func determineConsentCode(consent string) int {
+	consentCode := optin.OptInRequiredAll // default to all if not valid user consent
+
+	consent = strings.ToLower(consent)
+
+	switch consent {
+	case "kvm":
+		consentCode = optin.OptInRequiredKVM
+	case "all":
+		consentCode = optin.OptInRequiredAll
+	case "none":
+		consentCode = optin.OptInRequiredNone
+	}
+
+	return int(consentCode)
 }
 
 func (g *GoWSMANMessages) GetAlarmOccurrences() ([]ipsAlarmClock.AlarmClockOccurrence, error) {
@@ -223,6 +264,7 @@ func (g *GoWSMANMessages) GetAlarmOccurrences() ([]ipsAlarmClock.AlarmClockOccur
 func (g *GoWSMANMessages) CreateAlarmOccurrences(name string, startTime time.Time, interval int, deleteOnCompletion bool) (amtAlarmClock.AddAlarmOutput, error) {
 	alarmOccurrence := amtAlarmClock.AlarmClockOccurrence{
 		InstanceID:         name,
+		ElementName:        name,
 		StartTime:          startTime,
 		Interval:           interval,
 		DeleteOnCompletion: deleteOnCompletion,
@@ -245,122 +287,190 @@ func (g *GoWSMANMessages) DeleteAlarmOccurrences(instanceID string) error {
 	return nil
 }
 
-func (g *GoWSMANMessages) GetHardwareInfo() (interface{}, error) {
-	cspResult, err := g.wsmanMessages.CIM.ComputerSystemPackage.Get()
+func (g *GoWSMANMessages) hardwareGets() (GetHWResults, error) {
+	results := GetHWResults{}
+
+	var err error
+
+	results.CSPResult, err = g.wsmanMessages.CIM.ComputerSystemPackage.Get()
 	if err != nil {
-		return nil, err
+		return results, err
 	}
 
-	chassisResult, err := g.wsmanMessages.CIM.Chassis.Get()
+	results.ChassisResult, err = g.wsmanMessages.CIM.Chassis.Get()
 	if err != nil {
-		return nil, err
+		return results, err
 	}
 
-	cardResult, err := g.wsmanMessages.CIM.Card.Get()
+	results.CardResult, err = g.wsmanMessages.CIM.Card.Get()
 	if err != nil {
-		return nil, err
+		return results, err
 	}
 
-	chipResult, err := g.wsmanMessages.CIM.Chip.Get()
+	results.ChipResult, err = g.wsmanMessages.CIM.Chip.Get()
 	if err != nil {
-		return nil, err
+		return results, err
 	}
+
+	results.BiosResult, err = g.wsmanMessages.CIM.BIOSElement.Get()
+	if err != nil {
+		return results, err
+	}
+
+	results.ProcessorResult, err = g.wsmanMessages.CIM.Processor.Get()
+	if err != nil {
+		return results, err
+	}
+
+	return results, nil
+}
+
+func (g *GoWSMANMessages) hardwarePulls() (PullHWResults, error) {
+	results := PullHWResults{}
+
+	var err error
 
 	spEnumerateResult, err := g.wsmanMessages.CIM.SystemPackaging.Enumerate()
 	if err != nil {
-		return nil, err
+		return results, err
 	}
 
-	spPullResult, err := g.wsmanMessages.CIM.SystemPackaging.Pull(spEnumerateResult.Body.EnumerateResponse.EnumerationContext)
+	results.SPPullResult, err = g.wsmanMessages.CIM.SystemPackaging.Pull(spEnumerateResult.Body.EnumerateResponse.EnumerationContext)
 	if err != nil {
-		return nil, err
+		return results, err
 	}
 
 	ppEnumerateResult, err := g.wsmanMessages.CIM.PhysicalPackage.Enumerate()
 	if err != nil {
-		return nil, err
+		return results, err
 	}
 
-	ppPullResult, err := g.wsmanMessages.CIM.PhysicalPackage.Pull(ppEnumerateResult.Body.EnumerateResponse.EnumerationContext)
+	results.PPPullResult, err = g.wsmanMessages.CIM.PhysicalPackage.Pull(ppEnumerateResult.Body.EnumerateResponse.EnumerationContext)
 	if err != nil {
-		return nil, err
+		return results, err
 	}
 
 	mediaAccessEnumerateResult, err := g.wsmanMessages.CIM.MediaAccessDevice.Enumerate()
 	if err != nil {
-		return nil, err
+		return results, err
 	}
 
-	mediaAccessPullResult, err := g.wsmanMessages.CIM.MediaAccessDevice.Pull(mediaAccessEnumerateResult.Body.EnumerateResponse.EnumerationContext)
+	results.MediaAccessPullResult, err = g.wsmanMessages.CIM.MediaAccessDevice.Pull(mediaAccessEnumerateResult.Body.EnumerateResponse.EnumerationContext)
 	if err != nil {
-		return nil, err
+		return results, err
 	}
 
 	pmEnumerateResult, err := g.wsmanMessages.CIM.PhysicalMemory.Enumerate()
 	if err != nil {
-		return nil, err
+		return results, err
 	}
 
-	physicalMemoryResult, err := g.wsmanMessages.CIM.PhysicalMemory.Pull(pmEnumerateResult.Body.EnumerateResponse.EnumerationContext)
+	results.PhysicalMemoryResult, err = g.wsmanMessages.CIM.PhysicalMemory.Pull(pmEnumerateResult.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return results, err
+	}
+
+	return results, nil
+}
+
+func (g *GoWSMANMessages) GetHardwareInfo() (interface{}, error) {
+	getHWResults, err := g.hardwareGets()
 	if err != nil {
 		return nil, err
 	}
 
-	biosResult, err := g.wsmanMessages.CIM.BIOSElement.Get()
+	pullHWResults, err := g.hardwarePulls()
 	if err != nil {
 		return nil, err
 	}
 
-	processorResult, err := g.wsmanMessages.CIM.Processor.Get()
-	if err != nil {
-		return nil, err
+	hwResults := HWResults{
+		CSPResult:             getHWResults.CSPResult,
+		SPPullResult:          pullHWResults.SPPullResult,
+		ChassisResult:         getHWResults.ChassisResult,
+		ChipResult:            getHWResults.ChipResult,
+		CardResult:            getHWResults.CardResult,
+		PhysicalMemoryResult:  pullHWResults.PhysicalMemoryResult,
+		MediaAccessPullResult: pullHWResults.MediaAccessPullResult,
+		PPPullResult:          pullHWResults.PPPullResult,
+		BiosResult:            getHWResults.BiosResult,
+		ProcessorResult:       getHWResults.ProcessorResult,
 	}
 
+	return createMapInterfaceForHWInfo(hwResults)
+}
+
+type GetHWResults struct {
+	CSPResult       computer.Response
+	ChassisResult   chassis.Response
+	ChipResult      chip.Response
+	CardResult      card.Response
+	BiosResult      bios.Response
+	ProcessorResult processor.Response
+}
+type PullHWResults struct {
+	SPPullResult          system.Response
+	PhysicalMemoryResult  physical.Response
+	MediaAccessPullResult mediaaccess.Response
+	PPPullResult          physical.Response
+}
+type HWResults struct {
+	CSPResult             computer.Response
+	SPPullResult          system.Response
+	ChassisResult         chassis.Response
+	ChipResult            chip.Response
+	CardResult            card.Response
+	PhysicalMemoryResult  physical.Response
+	MediaAccessPullResult mediaaccess.Response
+	PPPullResult          physical.Response
+	BiosResult            bios.Response
+	ProcessorResult       processor.Response
+}
+
+func createMapInterfaceForHWInfo(hwResults HWResults) (interface{}, error) {
 	return map[string]interface{}{
 		"CIM_ComputerSystemPackage": map[string]interface{}{
-			"response":  cspResult.Body.GetResponse,
-			"responses": cspResult.Body.GetResponse,
+			"response":  hwResults.CSPResult.Body.GetResponse,
+			"responses": hwResults.CSPResult.Body.GetResponse,
 		},
 		"CIM_SystemPackaging": map[string]interface{}{
-			"responses": []interface{}{spPullResult.Body.PullResponse.SystemPackageItems},
+			"responses": []interface{}{hwResults.SPPullResult.Body.PullResponse.SystemPackageItems},
 		},
 		"CIM_Chassis": map[string]interface{}{
-			"response":  chassisResult.Body.PackageResponse,
+			"response":  hwResults.ChassisResult.Body.PackageResponse,
 			"responses": []interface{}{},
 		}, "CIM_Chip": map[string]interface{}{
-			"responses": []interface{}{chipResult.Body.PackageResponse},
+			"responses": []interface{}{hwResults.ChipResult.Body.PackageResponse},
 		}, "CIM_Card": map[string]interface{}{
-			"response":  cardResult.Body.PackageResponse,
+			"response":  hwResults.CardResult.Body.PackageResponse,
 			"responses": []interface{}{},
 		}, "CIM_BIOSElement": map[string]interface{}{
-			"response":  biosResult.Body.GetResponse,
+			"response":  hwResults.BiosResult.Body.GetResponse,
 			"responses": []interface{}{},
 		}, "CIM_Processor": map[string]interface{}{
-			"responses": []interface{}{processorResult.Body.PackageResponse},
+			"responses": []interface{}{hwResults.ProcessorResult.Body.PackageResponse},
 		}, "CIM_PhysicalMemory": map[string]interface{}{
-			"responses": physicalMemoryResult.Body.PullResponse.MemoryItems,
+			"responses": hwResults.PhysicalMemoryResult.Body.PullResponse.MemoryItems,
 		}, "CIM_MediaAccessDevice": map[string]interface{}{
-			"responses": []interface{}{mediaAccessPullResult.Body.PullResponse.MediaAccessDevices},
+			"responses": []interface{}{hwResults.MediaAccessPullResult.Body.PullResponse.MediaAccessDevices},
 		}, "CIM_PhysicalPackage": map[string]interface{}{
-			"responses": []interface{}{ppPullResult.Body.PullResponse.PhysicalPackage},
+			"responses": []interface{}{hwResults.PPPullResult.Body.PullResponse.PhysicalPackage},
 		},
 	}, nil
 }
 
-func (g *GoWSMANMessages) GetPowerState() (interface{}, error) {
+func (g *GoWSMANMessages) GetPowerState() ([]service.CIM_AssociatedPowerManagementService, error) {
 	response, err := g.wsmanMessages.CIM.ServiceAvailableToElement.Enumerate()
 	if err != nil {
-		return []amtAlarmClock.AlarmClockOccurrence{}, err
+		return []service.CIM_AssociatedPowerManagementService{}, err
 	}
 
 	response, err = g.wsmanMessages.CIM.ServiceAvailableToElement.Pull(response.Body.EnumerateResponse.EnumerationContext)
 	if err != nil {
-		return []amtAlarmClock.AlarmClockOccurrence{}, err
+		return []service.CIM_AssociatedPowerManagementService{}, err
 	}
 
-	return map[string]interface{}{
-		"powerstate": response.Body.PullResponse.AssociatedPowerManagementService[0].PowerState,
-	}, nil
+	return response.Body.PullResponse.AssociatedPowerManagementService, nil
 }
 
 func (g *GoWSMANMessages) GetPowerCapabilities() (boot.BootCapabilitiesResponse, error) {
@@ -381,7 +491,7 @@ func (g *GoWSMANMessages) GetGeneralSettings() (interface{}, error) {
 	return response.Body.GetResponse, nil
 }
 
-func (g *GoWSMANMessages) CancelUserConsent() (interface{}, error) {
+func (g *GoWSMANMessages) CancelUserConsentRequest() (interface{}, error) {
 	response, err := g.wsmanMessages.IPS.OptInService.CancelOptIn()
 	if err != nil {
 		return nil, err
@@ -439,19 +549,13 @@ func (g *GoWSMANMessages) ChangeBootOrder(bootSource string) (cimBoot.ChangeBoot
 	return response.Body.ChangeBootOrder_OUTPUT, nil
 }
 
-func (g *GoWSMANMessages) GetAuditLog(startIndex int) (dto.AuditLog, error) {
+func (g *GoWSMANMessages) GetAuditLog(startIndex int) (auditlog.Response, error) {
 	response, err := g.wsmanMessages.AMT.AuditLog.ReadRecords(startIndex)
 	if err != nil {
-		return dto.AuditLog{}, err
+		return auditlog.Response{}, err
 	}
 
-	auditLogResponse := dto.AuditLog{}
-
-	auditLogResponse.TotalCount = response.Body.ReadRecordsResponse.TotalRecordCount
-
-	auditLogResponse.Records = response.Body.DecodedRecordsResponse
-
-	return auditLogResponse, nil
+	return response, nil
 }
 
 func (g *GoWSMANMessages) GetEventLog() (messagelog.GetRecordsResponse, error) {
@@ -643,35 +747,41 @@ func (g *GoWSMANMessages) DeleteKeyPair(instanceID string) error {
 	return err
 }
 
-func (g *GoWSMANMessages) EnableWiFi() error {
+func (g *GoWSMANMessages) GetWiFiPortConfigurationService() (wifiportconfiguration.WiFiPortConfigurationServiceResponse, error) {
 	response, err := g.wsmanMessages.AMT.WiFiPortConfigurationService.Get()
 	if err != nil {
-		return err
+		return wifiportconfiguration.WiFiPortConfigurationServiceResponse{}, err
 	}
 
+	return response.Body.WiFiPortConfigurationService, nil
+}
+
+func (g *GoWSMANMessages) PutWiFiPortConfigurationService(request wifiportconfiguration.WiFiPortConfigurationServiceRequest) (wifiportconfiguration.WiFiPortConfigurationServiceResponse, error) {
 	// if local sync not enable, enable it
-	if response.Body.WiFiPortConfigurationService.LocalProfileSynchronizationEnabled == wifiportconfiguration.LocalSyncDisabled {
-		putRequest := wifiportconfiguration.WiFiPortConfigurationServiceRequest{
-			RequestedState:                     response.Body.WiFiPortConfigurationService.RequestedState,
-			EnabledState:                       response.Body.WiFiPortConfigurationService.EnabledState,
-			HealthState:                        response.Body.WiFiPortConfigurationService.HealthState,
-			ElementName:                        response.Body.WiFiPortConfigurationService.ElementName,
-			SystemCreationClassName:            response.Body.WiFiPortConfigurationService.SystemCreationClassName,
-			SystemName:                         response.Body.WiFiPortConfigurationService.SystemName,
-			CreationClassName:                  response.Body.WiFiPortConfigurationService.CreationClassName,
-			Name:                               response.Body.WiFiPortConfigurationService.Name,
-			LocalProfileSynchronizationEnabled: wifiportconfiguration.UnrestrictedSync,
-			LastConnectedSsidUnderMeControl:    response.Body.WiFiPortConfigurationService.LastConnectedSsidUnderMeControl,
-			NoHostCsmeSoftwarePolicy:           response.Body.WiFiPortConfigurationService.NoHostCsmeSoftwarePolicy,
-			UEFIWiFiProfileShareEnabled:        response.Body.WiFiPortConfigurationService.UEFIWiFiProfileShareEnabled,
-		}
-
-		_, err = g.wsmanMessages.AMT.WiFiPortConfigurationService.Put(putRequest)
-		if err != nil {
-			return err
-		}
+	// if response.Body.WiFiPortConfigurationService.LocalProfileSynchronizationEnabled == wifiportconfiguration.LocalSyncDisabled {
+	// 	putRequest := wifiportconfiguration.WiFiPortConfigurationServiceRequest{
+	// 		RequestedState:                     response.Body.WiFiPortConfigurationService.RequestedState,
+	// 		EnabledState:                       response.Body.WiFiPortConfigurationService.EnabledState,
+	// 		HealthState:                        response.Body.WiFiPortConfigurationService.HealthState,
+	// 		ElementName:                        response.Body.WiFiPortConfigurationService.ElementName,
+	// 		SystemCreationClassName:            response.Body.WiFiPortConfigurationService.SystemCreationClassName,
+	// 		SystemName:                         response.Body.WiFiPortConfigurationService.SystemName,
+	// 		CreationClassName:                  response.Body.WiFiPortConfigurationService.CreationClassName,
+	// 		Name:                               response.Body.WiFiPortConfigurationService.Name,
+	// 		LocalProfileSynchronizationEnabled: wifiportconfiguration.UnrestrictedSync,
+	// 		LastConnectedSsidUnderMeControl:    response.Body.WiFiPortConfigurationService.LastConnectedSsidUnderMeControl,
+	// 		NoHostCsmeSoftwarePolicy:           response.Body.WiFiPortConfigurationService.NoHostCsmeSoftwarePolicy,
+	// 		UEFIWiFiProfileShareEnabled:        response.Body.WiFiPortConfigurationService.UEFIWiFiProfileShareEnabled,
+	// 	}
+	response, err := g.wsmanMessages.AMT.WiFiPortConfigurationService.Put(request)
+	if err != nil {
+		return wifiportconfiguration.WiFiPortConfigurationServiceResponse{}, err
 	}
 
+	return response.Body.WiFiPortConfigurationService, nil
+}
+
+func (g *GoWSMANMessages) WiFiRequestStateChange() (err error) {
 	// always turn wifi on via state change request
 	// Enumeration 32769 - WiFi is enabled in S0 + Sx/AC
 	_, err = g.wsmanMessages.CIM.WiFiPort.RequestStateChange(int(wifi.EnabledStateWifiEnabledS0SxAC))

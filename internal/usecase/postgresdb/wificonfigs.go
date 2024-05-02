@@ -9,17 +9,19 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 	"github.com/open-amt-cloud-toolkit/console/pkg/postgres"
 )
 
 // WirelessRepo -.
 type WirelessRepo struct {
 	*postgres.DB
+	logger.Interface
 }
 
 // New -.
-func NewWirelessRepo(pg *postgres.DB) *WirelessRepo {
-	return &WirelessRepo{pg}
+func NewWirelessRepo(pg *postgres.DB, log logger.Interface) *WirelessRepo {
+	return &WirelessRepo{pg, log}
 }
 
 // CheckProfileExits -.
@@ -80,16 +82,16 @@ func (r *WirelessRepo) Get(ctx context.Context, top, skip int, tenantID string) 
 
 	sqlQuery, _, err := r.Builder.
 		Select(`
-			wireless_profile_name,
-			authentication_method,
-			encryption_method,
-			ssid,
-			psk_value,
-			psk_passphrase,
-			link_policy,
-			tenant_id,
-			ieee8021x_profile_name,
-      		CAST(xmin as text) as xmin
+        wireless_profile_name,
+        authentication_method,
+        encryption_method,
+        ssid,
+        psk_value,
+        psk_passphrase,
+        link_policy,
+        tenant_id,
+        ieee8021x_profile_name,
+        CAST(xmin as text) as xmin
 			`).
 		From("wirelessconfigs").
 		Where("tenant_id = ?", tenantID).

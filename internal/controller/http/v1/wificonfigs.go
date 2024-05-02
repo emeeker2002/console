@@ -6,17 +6,17 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase"
+	"github.com/open-amt-cloud-toolkit/console/internal/usecase/wificonfigs"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 	"github.com/open-amt-cloud-toolkit/console/pkg/postgres"
 )
 
 type WirelessConfigRoutes struct {
-	t usecase.WirelessProfile
+	t wificonfigs.Feature
 	l logger.Interface
 }
 
-func newWirelessConfigRoutes(handler *gin.RouterGroup, t usecase.WirelessProfile, l logger.Interface) {
+func newWirelessConfigRoutes(handler *gin.RouterGroup, t wificonfigs.Feature, l logger.Interface) {
 	r := &WirelessConfigRoutes{t, l}
 
 	h := handler.Group("/wirelessconfigs")
