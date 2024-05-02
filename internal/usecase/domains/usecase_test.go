@@ -315,7 +315,6 @@ func TestDelete(t *testing.T) {
 					Delete(context.Background(), "example-domain", "tenant-id-456").
 					Return(true, nil)
 			},
-			res: true,
 			err: nil,
 		},
 		{
@@ -327,7 +326,6 @@ func TestDelete(t *testing.T) {
 					Delete(context.Background(), "nonexistent-domain", "tenant-id-456").
 					Return(false, errNotFound)
 			},
-			res: false,
 			err: errDelete,
 		},
 	}
@@ -341,9 +339,7 @@ func TestDelete(t *testing.T) {
 
 			tc.mock(repo)
 
-			result, err := useCase.Delete(context.Background(), tc.domainName, tc.tenantID)
-
-			require.Equal(t, tc.res, result)
+			err := useCase.Delete(context.Background(), tc.domainName, tc.tenantID)
 
 			if tc.err != nil {
 				require.Error(t, err)

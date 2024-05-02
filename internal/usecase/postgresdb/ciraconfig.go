@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 	"github.com/open-amt-cloud-toolkit/console/pkg/postgres"
 )
@@ -103,7 +104,7 @@ func (r *CIRARepo) Get(ctx context.Context, top, skip int, tenantID string) ([]e
 }
 
 // GetByName -.
-func (r *CIRARepo) GetByName(ctx context.Context, configName, tenantID string) (entity.CIRAConfig, error) {
+func (r *CIRARepo) GetByName(ctx context.Context, configName, tenantID string) (*entity.CIRAConfig, error) {
 	sqlQuery, _, err := r.Builder.
 		Select(`
 			cira_config_name,
@@ -123,20 +124,20 @@ func (r *CIRARepo) GetByName(ctx context.Context, configName, tenantID string) (
 		Where("cira_config_name = ? and tenant_id = ?", configName, tenantID).
 		ToSql()
 	if err != nil {
-		return entity.CIRAConfig{}, fmt.Errorf("CIRARepo - GetByName - r.Builder: %w", err)
+		return nil, fmt.Errorf("CIRARepo - GetByName - r.Builder: %w", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, configName, tenantID)
 	if err != nil {
-		return entity.CIRAConfig{}, fmt.Errorf("CIRARepo - GetByName - r.Pool.Query: %w", err)
+		return nil, fmt.Errorf("CIRARepo - GetByName - r.Pool.Query: %w", err)
 	}
 
 	defer rows.Close()
 
-	configs := make([]entity.CIRAConfig, 0)
+	configs := make([]*entity.CIRAConfig, 0)
 
 	for rows.Next() {
-		p := entity.CIRAConfig{}
+		p := &entity.CIRAConfig{}
 
 		err = rows.Scan(&p.ConfigName, &p.MPSServerAddress, &p.MpsPort, &p.Username, &p.Password, &p.CommonName, &p.ServerAddressFormat, &p.AuthMethod, &p.MpsRootCertificate, &p.ProxyDetails, &p.TenantID, &p.Version)
 		if err != nil {
@@ -147,7 +148,7 @@ func (r *CIRARepo) GetByName(ctx context.Context, configName, tenantID string) (
 	}
 
 	if len(configs) == 0 {
-		return entity.CIRAConfig{}, errors.New(postgres.NotFound)
+		return nil, errors.New(postgres.NotFound)
 	}
 
 	return configs[0], nil
@@ -214,6 +215,10 @@ func (r *CIRARepo) Insert(ctx context.Context, p *entity.CIRAConfig) (string, er
 
 	err = r.Pool.QueryRow(ctx, sqlQuery, args...).Scan(&version)
 	if err != nil {
+		if postgres.CheckNotUnique(err) {
+			return "", fmt.Errorf("CIRARepo - Insert - r.Pool.QueryRow: %w", consoleerrors.ErrNotUnique)
+		}
+
 		return "", fmt.Errorf("CIRARepo - Insert - r.Pool.QueryRow: %w", err)
 	}
 

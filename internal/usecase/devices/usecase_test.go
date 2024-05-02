@@ -260,9 +260,7 @@ func TestDelete(t *testing.T) {
 			useCase, repo := devicesTest(t)
 			tc.mock(repo)
 
-			result, err := useCase.Delete(context.Background(), tc.guid, tc.tenantID)
-
-			require.Equal(t, tc.res, result)
+			err := useCase.Delete(context.Background(), tc.guid, tc.tenantID)
 
 			if tc.err != nil {
 				require.Error(t, err)

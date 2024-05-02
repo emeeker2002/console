@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 	"github.com/open-amt-cloud-toolkit/console/pkg/postgres"
 )
@@ -127,7 +128,7 @@ func (r *WirelessRepo) Get(ctx context.Context, top, skip int, tenantID string) 
 }
 
 // GetByName -.
-func (r *WirelessRepo) GetByName(ctx context.Context, profileName, tenantID string) (entity.WirelessConfig, error) {
+func (r *WirelessRepo) GetByName(ctx context.Context, profileName, tenantID string) (*entity.WirelessConfig, error) {
 	sqlQuery, _, err := r.Builder.
 		Select(`
 			wireless_profile_name,
@@ -144,20 +145,20 @@ func (r *WirelessRepo) GetByName(ctx context.Context, profileName, tenantID stri
 		Where("wireless_profile_name = ? and tenant_id = ?", profileName, tenantID).
 		ToSql()
 	if err != nil {
-		return entity.WirelessConfig{}, fmt.Errorf("WirelessRepo - GetByName - r.Builder: %w", err)
+		return nil, fmt.Errorf("WirelessRepo - GetByName - r.Builder: %w", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, profileName, tenantID)
 	if err != nil {
-		return entity.WirelessConfig{}, fmt.Errorf("WirelessRepo - GetByName - r.Pool.Query: %w", err)
+		return nil, fmt.Errorf("WirelessRepo - GetByName - r.Pool.Query: %w", err)
 	}
 
 	defer rows.Close()
 
-	wirelessConfigs := make([]entity.WirelessConfig, 0)
+	wirelessConfigs := make([]*entity.WirelessConfig, 0)
 
 	for rows.Next() {
-		p := entity.WirelessConfig{}
+		p := &entity.WirelessConfig{}
 
 		err = rows.Scan(&p.ProfileName, &p.AuthenticationMethod, &p.EncryptionMethod, &p.SSID, &p.PSKValue, &p.LinkPolicy, &p.TenantID, &p.IEEE8021xProfileName, &p.Version)
 		if err != nil {
@@ -168,7 +169,7 @@ func (r *WirelessRepo) GetByName(ctx context.Context, profileName, tenantID stri
 	}
 
 	if len(wirelessConfigs) == 0 {
-		return entity.WirelessConfig{}, errors.New(postgres.NotFound)
+		return nil, errors.New(postgres.NotFound)
 	}
 
 	return wirelessConfigs[0], nil
@@ -244,6 +245,10 @@ func (r *WirelessRepo) Insert(ctx context.Context, p *entity.WirelessConfig) (st
 
 	err = r.Pool.QueryRow(ctx, sqlQuery, args...).Scan(&version)
 	if err != nil {
+		if postgres.CheckNotUnique(err) {
+			return "", fmt.Errorf("WirelessRepo - Insert - r.Pool.QueryRow: %w", consoleerrors.ErrNotUnique)
+		}
+
 		return "", fmt.Errorf("WirelessRepo - Insert - r.Pool.QueryRow: %w", err)
 	}
 

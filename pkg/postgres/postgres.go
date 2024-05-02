@@ -81,13 +81,13 @@ func (p *DB) Close() {
 	}
 }
 
-func CheckUnique(err error) (bool, string) {
+func CheckNotUnique(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		if pgErr.Code == UniqueViolation {
-			return false, pgErr.Message
+			return true
 		}
 	}
 
-	return true, ""
+	return false
 }

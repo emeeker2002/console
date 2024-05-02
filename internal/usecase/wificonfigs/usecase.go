@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 )
 
@@ -26,7 +27,7 @@ func New(r Repository, log logger.Interface) *UseCase {
 func (uc *UseCase) CheckProfileExists(ctx context.Context, profileName, tenantID string) (bool, error) {
 	data, err := uc.repo.CheckProfileExists(ctx, profileName, tenantID)
 	if err != nil {
-		return false, fmt.Errorf("WificonfigsUseCase - Count - s.repo.GetCount: %w", err)
+		return false, fmt.Errorf("WificonfigsUseCase - Count - uc.repo.GetCount: %w", err)
 	}
 
 	return data, nil
@@ -35,7 +36,7 @@ func (uc *UseCase) CheckProfileExists(ctx context.Context, profileName, tenantID
 func (uc *UseCase) GetCount(ctx context.Context, tenantID string) (int, error) {
 	count, err := uc.repo.GetCount(ctx, tenantID)
 	if err != nil {
-		return 0, fmt.Errorf("WificonfigsUseCase - Count - s.repo.GetCount: %w", err)
+		return 0, fmt.Errorf("WificonfigsUseCase - Count - uc.repo.GetCount: %w", err)
 	}
 
 	return count, nil
@@ -44,44 +45,58 @@ func (uc *UseCase) GetCount(ctx context.Context, tenantID string) (int, error) {
 func (uc *UseCase) Get(ctx context.Context, top, skip int, tenantID string) ([]entity.WirelessConfig, error) {
 	data, err := uc.repo.Get(ctx, top, skip, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("WificonfigsUseCase - Get - s.repo.Get: %w", err)
+		return nil, fmt.Errorf("WificonfigsUseCase - Get - uc.repo.Get: %w", err)
 	}
 
 	return data, nil
 }
 
-func (uc *UseCase) GetByName(ctx context.Context, profileName, tenantID string) (entity.WirelessConfig, error) {
+func (uc *UseCase) GetByName(ctx context.Context, profileName, tenantID string) (*entity.WirelessConfig, error) {
 	data, err := uc.repo.GetByName(ctx, profileName, tenantID)
 	if err != nil {
-		return entity.WirelessConfig{}, fmt.Errorf("WificonfigsUseCase - GetByName - s.repo.GetByName: %w", err)
+		return nil, fmt.Errorf("WificonfigsUseCase - GetByName - uc.repo.GetByName: %w", err)
 	}
 
 	return data, nil
 }
 
-func (uc *UseCase) Delete(ctx context.Context, profileName, tenantID string) (bool, error) {
-	data, err := uc.repo.Delete(ctx, profileName, tenantID)
+func (uc *UseCase) Delete(ctx context.Context, profileName, tenantID string) error {
+	isSuccessful, err := uc.repo.Delete(ctx, profileName, tenantID)
 	if err != nil {
-		return false, fmt.Errorf("WificonfigsUseCase - Delete - s.repo.Delete: %w", err)
+		return fmt.Errorf("WificonfigsUseCase - Delete - uc.repo.Delete: %w", err)
 	}
 
-	return data, nil
+	if !isSuccessful {
+		return consoleerrors.ErrNotFound
+	}
+
+	return nil
 }
 
-func (uc *UseCase) Update(ctx context.Context, d *entity.WirelessConfig) (bool, error) {
-	data, err := uc.repo.Update(ctx, d)
+func (uc *UseCase) Update(ctx context.Context, d *entity.WirelessConfig) (*entity.WirelessConfig, error) {
+	_, err := uc.repo.Update(ctx, d)
 	if err != nil {
-		return false, fmt.Errorf("WificonfigsUseCase - Update - s.repo.Update: %w", err)
+		return nil, fmt.Errorf("WificonfigsUseCase - Update - uc.repo.Update: %w", err)
 	}
 
-	return data, nil
+	updatedConfig, err := uc.repo.GetByName(ctx, d.ProfileName, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedConfig, nil
 }
 
-func (uc *UseCase) Insert(ctx context.Context, d *entity.WirelessConfig) (string, error) {
-	data, err := uc.repo.Insert(ctx, d)
+func (uc *UseCase) Insert(ctx context.Context, d *entity.WirelessConfig) (*entity.WirelessConfig, error) {
+	_, err := uc.repo.Insert(ctx, d)
 	if err != nil {
-		return "", fmt.Errorf("WificonfigsUseCase - Insert - s.repo.Insert: %w", err)
+		return nil, fmt.Errorf("WificonfigsUseCase - Insert - uc.repo.Insert: %w", err)
 	}
 
-	return data, nil
+	insertedConfig, err := uc.repo.GetByName(ctx, d.ProfileName, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return insertedConfig, nil
 }

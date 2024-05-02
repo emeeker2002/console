@@ -210,7 +210,7 @@ func TestGet(t *testing.T) {
 func TestGetByName(t *testing.T) {
 	t.Parallel()
 
-	wirelessConfig := entity.WirelessConfig{
+	wirelessConfig := &entity.WirelessConfig{
 		ProfileName: "test-WirelessConfig",
 		TenantID:    "tenant-id-456",
 		Version:     "123",
@@ -281,8 +281,7 @@ func TestDelete(t *testing.T) {
 					Delete(context.Background(), args[0], args[1]).
 					Return(true, nil)
 			},
-			expectedResult: true,
-			err:            nil,
+			err: nil,
 		},
 		{
 			name:        "deletion fails - wirelessconfig not found",
@@ -293,8 +292,7 @@ func TestDelete(t *testing.T) {
 					Delete(context.Background(), args[0], args[1]).
 					Return(false, errNotFound)
 			},
-			expectedResult: false,
-			err:            errDelete,
+			err: errDelete,
 		},
 	}
 
@@ -306,9 +304,7 @@ func TestDelete(t *testing.T) {
 
 			tc.mock(repo, tc.profileName, tc.tenantID)
 
-			result, err := useCase.Delete(context.Background(), tc.profileName, tc.tenantID)
-
-			require.Equal(t, tc.expectedResult, result)
+			err := useCase.Delete(context.Background(), tc.profileName, tc.tenantID)
 
 			if tc.err != nil {
 				require.Error(t, err)

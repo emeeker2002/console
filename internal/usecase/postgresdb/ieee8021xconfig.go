@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 	"github.com/open-amt-cloud-toolkit/console/pkg/postgres"
 )
@@ -121,7 +122,7 @@ func (r *IEEE8021xRepo) Get(ctx context.Context, top, skip int, tenantID string)
 }
 
 // GetByName -.
-func (r *IEEE8021xRepo) GetByName(ctx context.Context, profileName, tenantID string) (entity.IEEE8021xConfig, error) {
+func (r *IEEE8021xRepo) GetByName(ctx context.Context, profileName, tenantID string) (*entity.IEEE8021xConfig, error) {
 	sqlQuery, _, err := r.Builder.
 		Select(`
 			    profile_name,
@@ -135,20 +136,20 @@ func (r *IEEE8021xRepo) GetByName(ctx context.Context, profileName, tenantID str
 		Where("profile_name = ? and tenant_id = ?", profileName, tenantID).
 		ToSql()
 	if err != nil {
-		return entity.IEEE8021xConfig{}, fmt.Errorf("IEEE8021xRepo - Get - r.Builder: %w", err)
+		return nil, fmt.Errorf("IEEE8021xRepo - Get - r.Builder: %w", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, profileName, tenantID)
 	if err != nil {
-		return entity.IEEE8021xConfig{}, fmt.Errorf("IEEE8021xRepo - Get - r.Pool.Query: %w", err)
+		return nil, fmt.Errorf("IEEE8021xRepo - Get - r.Pool.Query: %w", err)
 	}
 
 	defer rows.Close()
 
-	ieee8021xConfigs := make([]entity.IEEE8021xConfig, 0)
+	ieee8021xConfigs := make([]*entity.IEEE8021xConfig, 0)
 
 	for rows.Next() {
-		p := entity.IEEE8021xConfig{}
+		p := &entity.IEEE8021xConfig{}
 
 		err = rows.Scan(&p.ProfileName, &p.AuthenticationProtocol, &p.PxeTimeout, &p.WiredInterface, &p.TenantID, &p.Version)
 		if err != nil {
@@ -159,7 +160,7 @@ func (r *IEEE8021xRepo) GetByName(ctx context.Context, profileName, tenantID str
 	}
 
 	if len(ieee8021xConfigs) == 0 {
-		return entity.IEEE8021xConfig{}, errors.New(postgres.NotFound)
+		return nil, errors.New(postgres.NotFound)
 	}
 
 	return ieee8021xConfigs[0], nil
@@ -226,6 +227,10 @@ func (r *IEEE8021xRepo) Insert(ctx context.Context, p *entity.IEEE8021xConfig) (
 
 	err = r.Pool.QueryRow(ctx, sqlQuery, args...).Scan(&version)
 	if err != nil {
+		if postgres.CheckNotUnique(err) {
+			return "", fmt.Errorf("IEEE8021xRepo - Insert - r.Pool.QueryRow: %w", consoleerrors.ErrNotUnique)
+		}
+
 		return "", fmt.Errorf("IEEE8021xRepo - Insert - r.Pool.QueryRow: %w", err)
 	}
 

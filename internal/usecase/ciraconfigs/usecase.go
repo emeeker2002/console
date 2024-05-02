@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 )
 
@@ -26,7 +27,7 @@ func New(r Repository, log logger.Interface) *UseCase {
 func (uc *UseCase) GetCount(ctx context.Context, tenantID string) (int, error) {
 	count, err := uc.repo.GetCount(ctx, tenantID)
 	if err != nil {
-		return 0, fmt.Errorf("CIRAConfigsUseCase - Count - s.repo.GetCount: %w", err)
+		return 0, fmt.Errorf("CIRAConfigsUseCase - Count - uc.repo.GetCount: %w", err)
 	}
 
 	return count, nil
@@ -35,44 +36,58 @@ func (uc *UseCase) GetCount(ctx context.Context, tenantID string) (int, error) {
 func (uc *UseCase) Get(ctx context.Context, top, skip int, tenantID string) ([]entity.CIRAConfig, error) {
 	data, err := uc.repo.Get(ctx, top, skip, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("CIRAConfigsUseCase - Get - s.repo.Get: %w", err)
+		return nil, fmt.Errorf("CIRAConfigsUseCase - Get - uc.repo.Get: %w", err)
 	}
 
 	return data, nil
 }
 
-func (uc *UseCase) GetByName(ctx context.Context, configName, tenantID string) (entity.CIRAConfig, error) {
+func (uc *UseCase) GetByName(ctx context.Context, configName, tenantID string) (*entity.CIRAConfig, error) {
 	data, err := uc.repo.GetByName(ctx, configName, tenantID)
 	if err != nil {
-		return entity.CIRAConfig{}, fmt.Errorf("CIRAConfigsUseCase - GetByName - s.repo.GetByName: %w", err)
+		return nil, fmt.Errorf("CIRAConfigsUseCase - GetByName - uc.repo.GetByName: %w", err)
 	}
 
 	return data, nil
 }
 
-func (uc *UseCase) Delete(ctx context.Context, configName, tenantID string) (bool, error) {
-	data, err := uc.repo.Delete(ctx, configName, tenantID)
+func (uc *UseCase) Delete(ctx context.Context, configName, tenantID string) error {
+	isSuccessful, err := uc.repo.Delete(ctx, configName, tenantID)
 	if err != nil {
-		return false, fmt.Errorf("CIRAConfigsUseCase - Delete - s.repo.Delete: %w", err)
+		return fmt.Errorf("CIRAConfigsUseCase - Delete - uc.repo.Delete: %w", err)
 	}
 
-	return data, nil
+	if !isSuccessful {
+		return consoleerrors.ErrNotFound
+	}
+
+	return nil
 }
 
-func (uc *UseCase) Update(ctx context.Context, d *entity.CIRAConfig) (bool, error) {
-	data, err := uc.repo.Update(ctx, d)
+func (uc *UseCase) Update(ctx context.Context, d *entity.CIRAConfig) (*entity.CIRAConfig, error) {
+	_, err := uc.repo.Update(ctx, d)
 	if err != nil {
-		return false, fmt.Errorf("CIRAConfigsUseCase - Update - s.repo.Update: %w", err)
+		return nil, fmt.Errorf("CIRAConfigsUseCase - Update - uc.repo.Update: %w", err)
 	}
 
-	return data, nil
+	updatedCiraConfig, err := uc.repo.GetByName(ctx, d.ConfigName, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedCiraConfig, nil
 }
 
-func (uc *UseCase) Insert(ctx context.Context, d *entity.CIRAConfig) (string, error) {
-	data, err := uc.repo.Insert(ctx, d)
+func (uc *UseCase) Insert(ctx context.Context, d *entity.CIRAConfig) (*entity.CIRAConfig, error) {
+	_, err := uc.repo.Insert(ctx, d)
 	if err != nil {
-		return "", fmt.Errorf("CIRAConfigsUseCase - Insert - s.repo.Insert: %w", err)
+		return nil, fmt.Errorf("CIRAConfigsUseCase - Insert - uc.repo.Insert: %w", err)
 	}
 
-	return data, nil
+	newConfig, err := uc.repo.GetByName(ctx, d.ConfigName, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return newConfig, nil
 }

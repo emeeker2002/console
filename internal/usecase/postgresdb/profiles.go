@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 	"github.com/open-amt-cloud-toolkit/console/pkg/postgres"
 )
@@ -119,7 +120,7 @@ func (r *ProfileRepo) Get(ctx context.Context, top, skip int, tenantID string) (
 
 // GetByName -.
 
-func (r *ProfileRepo) GetByName(ctx context.Context, profileName, tenantID string) (entity.Profile, error) {
+func (r *ProfileRepo) GetByName(ctx context.Context, profileName, tenantID string) (*entity.Profile, error) {
 	sqlQuery, _, err := r.Builder.
 		Select(`profile_name,
             activation,
@@ -146,20 +147,20 @@ func (r *ProfileRepo) GetByName(ctx context.Context, profileName, tenantID strin
 		Where("profile_name = ? and tenant_id = ?", profileName, tenantID).
 		ToSql()
 	if err != nil {
-		return entity.Profile{}, fmt.Errorf("ProfileRepo - GetByName - r.Builder: %w", err)
+		return nil, fmt.Errorf("ProfileRepo - GetByName - r.Builder: %w", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, profileName, tenantID)
 	if err != nil {
-		return entity.Profile{}, fmt.Errorf("ProfileRepo - GetByName - r.Pool.Query: %w", err)
+		return nil, fmt.Errorf("ProfileRepo - GetByName - r.Pool.Query: %w", err)
 	}
 
 	defer rows.Close()
 
-	profiles := make([]entity.Profile, 0)
+	profiles := make([]*entity.Profile, 0)
 
 	for rows.Next() {
-		p := entity.Profile{}
+		p := &entity.Profile{}
 
 		err = rows.Scan(&p.ProfileName, &p.Activation, &p.AMTPassword, &p.GenerateRandomPassword,
 			&p.CIRAConfigName, &p.MEBXPassword,
@@ -174,7 +175,7 @@ func (r *ProfileRepo) GetByName(ctx context.Context, profileName, tenantID strin
 	}
 
 	if len(profiles) == 0 {
-		return entity.Profile{}, fmt.Errorf("ProfileRepo - GetByName - Not Found: %w", err)
+		return nil, fmt.Errorf("ProfileRepo - GetByName - Not Found: %w", err)
 	}
 
 	return profiles[0], nil
@@ -269,6 +270,10 @@ func (r *ProfileRepo) Insert(ctx context.Context, p *entity.Profile) (string, er
 
 	err = r.Pool.QueryRow(ctx, sqlQuery, args...).Scan(&version)
 	if err != nil {
+		if postgres.CheckNotUnique(err) {
+			return "", fmt.Errorf("ProfileRepo - Insert - r.Pool.QueryRow: %w", consoleerrors.ErrNotUnique)
+		}
+
 		return "", fmt.Errorf("ProfileRepo - Insert - r.Pool.QueryRow: %w", err)
 	}
 

@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 	"github.com/open-amt-cloud-toolkit/console/pkg/postgres"
 )
@@ -219,6 +220,10 @@ func (r *DomainRepo) Insert(ctx context.Context, d *entity.Domain) (string, erro
 
 	err = r.Pool.QueryRow(ctx, sqlQuery, args...).Scan(&version)
 	if err != nil {
+		if postgres.CheckNotUnique(err) {
+			return "", fmt.Errorf("DomainRepo - Insert - r.Pool.QueryRow: %w", consoleerrors.ErrNotUnique)
+		}
+
 		return "", fmt.Errorf("DomainRepo - Insert - r.Pool.QueryRow: %w", err)
 	}
 

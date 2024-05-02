@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 )
 
 // History - getting translate history from store.
@@ -26,10 +27,10 @@ func (uc *UseCase) Get(ctx context.Context, top, skip int, tenantID string) ([]e
 	return data, nil
 }
 
-func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string) (entity.Device, error) {
+func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string) (*entity.Device, error) {
 	data, err := uc.repo.GetByID(ctx, guid, tenantID)
 	if err != nil {
-		return entity.Device{}, fmt.Errorf("DevicesUseCase - GetByID - s.repo.GetByID: %w", err)
+		return nil, fmt.Errorf("DevicesUseCase - GetByID - s.repo.GetByID: %w", err)
 	}
 
 	return data, nil
@@ -53,29 +54,43 @@ func (uc *UseCase) GetByTags(ctx context.Context, tags []string, method string, 
 	return data, nil
 }
 
-func (uc *UseCase) Delete(ctx context.Context, guid, tenantID string) (bool, error) {
-	data, err := uc.repo.Delete(ctx, guid, tenantID)
+func (uc *UseCase) Delete(ctx context.Context, guid, tenantID string) error {
+	isSuccessful, err := uc.repo.Delete(ctx, guid, tenantID)
 	if err != nil {
-		return false, fmt.Errorf("DevicesUseCase - Delete - s.repo.Delete: %w", err)
+		return fmt.Errorf("DevicesUseCase - Delete - s.repo.Delete: %w", err)
 	}
 
-	return data, nil
+	if !isSuccessful {
+		return consoleerrors.ErrNotFound
+	}
+
+	return nil
 }
 
-func (uc *UseCase) Update(ctx context.Context, d *entity.Device) (bool, error) {
-	data, err := uc.repo.Update(ctx, d)
+func (uc *UseCase) Update(ctx context.Context, d *entity.Device) (*entity.Device, error) {
+	_, err := uc.repo.Update(ctx, d)
 	if err != nil {
-		return false, fmt.Errorf("DevicesUseCase - Update - s.repo.Update: %w", err)
+		return nil, fmt.Errorf("DevicesUseCase - Update - s.repo.Update: %w", err)
 	}
 
-	return data, nil
+	updateDevice, err := uc.repo.GetByID(ctx, d.GUID, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return updateDevice, nil
 }
 
-func (uc *UseCase) Insert(ctx context.Context, d *entity.Device) (string, error) {
-	data, err := uc.repo.Insert(ctx, d)
+func (uc *UseCase) Insert(ctx context.Context, d *entity.Device) (*entity.Device, error) {
+	_, err := uc.repo.Insert(ctx, d)
 	if err != nil {
-		return "", fmt.Errorf("DevicesUseCase - Insert - s.repo.Insert: %w", err)
+		return nil, fmt.Errorf("DevicesUseCase - Insert - s.repo.Insert: %w", err)
 	}
 
-	return data, nil
+	newDevice, err := uc.repo.GetByID(ctx, d.GUID, "")
+	if err != nil {
+		return nil, err
+	}
+
+	return newDevice, nil
 }

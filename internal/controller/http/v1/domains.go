@@ -10,7 +10,6 @@ import (
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/domains"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
-	"github.com/open-amt-cloud-toolkit/console/pkg/postgres"
 )
 
 type domainRoutes struct {
@@ -55,7 +54,7 @@ type DomainCountResponse struct {
 func (r *domainRoutes) get(c *gin.Context) {
 	var odata OData
 	if err := c.ShouldBindQuery(&odata); err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
+		errorResponse(c, err)
 
 		return
 	}
@@ -63,7 +62,7 @@ func (r *domainRoutes) get(c *gin.Context) {
 	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, "")
 	if err != nil {
 		r.l.Error(err, "http - v1 - getCount")
-		errorResponse(c, http.StatusInternalServerError, "database problems")
+		errorResponse(c, err)
 
 		return
 	}
@@ -72,7 +71,7 @@ func (r *domainRoutes) get(c *gin.Context) {
 		count, err := r.t.GetCount(c.Request.Context(), "")
 		if err != nil {
 			r.l.Error(err, "http - v1 - getCount")
-			errorResponse(c, http.StatusInternalServerError, "database problems")
+			errorResponse(c, err)
 		}
 
 		countResponse := DomainCountResponse{
@@ -101,13 +100,13 @@ func (r *domainRoutes) getByName(c *gin.Context) {
 	item, err := r.t.GetByName(c.Request.Context(), name, "")
 	if err != nil {
 
-		if err.Error() == postgres.NotFound {
-			r.l.Error(err, "Domain "+name+" not found")
-			errorResponse(c, http.StatusNotFound, "domain not found")
-		} else {
-			r.l.Error(err, "http - v1 - getByName")
-			errorResponse(c, http.StatusInternalServerError, "database problems")
-		}
+		// if err.Error() == postgres.NotFound {
+		// 	r.l.Error(err, "Domain "+name+" not found")
+		// 	errorResponse(c, http.StatusNotFound, "domain not found")
+		// } else {
+		r.l.Error(err, "http - v1 - getByName")
+		errorResponse(c, err)
+		//}
 
 		return
 	}
@@ -127,39 +126,26 @@ func (r *domainRoutes) getByName(c *gin.Context) {
 func (r *domainRoutes) insert(c *gin.Context) {
 	var domain entity.Domain
 	if err := c.ShouldBindJSON(&domain); err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
+		errorResponse(c, err)
 
 		return
 	}
 
-	_, err := r.t.Insert(c.Request.Context(), &domain)
+	newDomain, err := r.t.Insert(c.Request.Context(), &domain)
 	if err != nil {
 		r.l.Error(err, "http - v1 - insert")
+		errorResponse(c, err)
 
-		if unique, errMsg := postgres.CheckUnique(err); !unique {
-			errorResponse(c, http.StatusBadRequest, errMsg)
-		} else {
-			errorResponse(c, http.StatusInternalServerError, "database problems")
-		}
-
-		return
-	}
-
-	storedDomain, err := r.t.GetByName(c.Request.Context(), domain.ProfileName, "")
-	if err != nil {
-
-		if err.Error() == postgres.NotFound {
-			r.l.Error(err, "Domain "+domain.ProfileName+" not found")
-			errorResponse(c, http.StatusNotFound, "domain not found")
-		} else {
-			r.l.Error(err, "http - v1 - getByName")
-			errorResponse(c, http.StatusInternalServerError, "database problems")
-		}
+		// if unique, _ := postgres.CheckUnique(err); !unique {
+		// 	errorResponse(c, err)
+		// } else {
+		// 	errorResponse(c, err)
+		// }
 
 		return
 	}
 
-	c.JSON(http.StatusCreated, storedDomain)
+	c.JSON(http.StatusCreated, newDomain)
 }
 
 // @Summary     Edit Domain
@@ -174,46 +160,25 @@ func (r *domainRoutes) insert(c *gin.Context) {
 func (r *domainRoutes) update(c *gin.Context) {
 	var domain entity.Domain
 	if err := c.ShouldBindJSON(&domain); err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
+		errorResponse(c, err)
 
 		return
 	}
 
-	domainFound, err := r.t.Update(c.Request.Context(), &domain)
+	updatedDomain, err := r.t.Update(c.Request.Context(), &domain)
 	if err != nil {
 		r.l.Error(err, "http - v1 - update")
 
-		if unique, errMsg := postgres.CheckUnique(err); !unique {
-			errorResponse(c, http.StatusBadRequest, errMsg)
-		} else {
-			errorResponse(c, http.StatusInternalServerError, "database problems")
-		}
+		// if unique, _ := postgres.CheckUnique(err); !unique {
+		// 	errorResponse(c, err)
+		// } else {
+		errorResponse(c, err)
+		//}
 
 		return
 	}
 
-	if !domainFound {
-		r.l.Error(err, "http - v1 - update")
-		errorResponse(c, http.StatusNotFound, "domain not found")
-
-		return
-	}
-
-	storedDomain, err := r.t.GetByName(c.Request.Context(), domain.ProfileName, "")
-	if err != nil {
-
-		if err.Error() == postgres.NotFound {
-			r.l.Error(err, "Domain "+domain.ProfileName+" not found")
-			errorResponse(c, http.StatusNotFound, "domain not found")
-		} else {
-			r.l.Error(err, "http - v1 - getByName")
-			errorResponse(c, http.StatusInternalServerError, "database problems")
-		}
-
-		return
-	}
-
-	c.JSON(http.StatusOK, storedDomain)
+	c.JSON(http.StatusOK, updatedDomain)
 }
 
 // @Summary     Remove Domains
@@ -228,18 +193,13 @@ func (r *domainRoutes) update(c *gin.Context) {
 func (r *domainRoutes) delete(c *gin.Context) {
 	name := c.Param("name")
 
-	deleteSuccessful, err := r.t.Delete(c.Request.Context(), name, "")
+	err := r.t.Delete(c.Request.Context(), name, "")
 	if err != nil {
 		r.l.Error(err, "http - v1 - delete")
-		errorResponse(c, http.StatusInternalServerError, "database problems")
+		errorResponse(c, err)
 
 		return
 	}
 
-	if !deleteSuccessful {
-		r.l.Error(err, "http - v1 - delete")
-		errorResponse(c, http.StatusNotFound, "domain not found")
-	}
-
-	c.JSON(http.StatusNoContent, deleteSuccessful)
+	c.JSON(http.StatusNoContent, nil)
 }

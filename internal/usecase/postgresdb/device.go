@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 	"github.com/open-amt-cloud-toolkit/console/pkg/postgres"
 )
@@ -105,7 +106,7 @@ func (r *DeviceRepo) Get(ctx context.Context, top, skip int, tenantID string) ([
 }
 
 // GetByID -.
-func (r *DeviceRepo) GetByID(ctx context.Context, guid, tenantID string) (entity.Device, error) {
+func (r *DeviceRepo) GetByID(ctx context.Context, guid, tenantID string) (*entity.Device, error) {
 	sqlQuery, _, err := r.Builder.
 		Select(`guid,
 				hostname,
@@ -126,20 +127,20 @@ func (r *DeviceRepo) GetByID(ctx context.Context, guid, tenantID string) (entity
 		Where("guid = ? and tenantid = ?").
 		ToSql()
 	if err != nil {
-		return entity.Device{}, fmt.Errorf("DeviceRepo - Get - r.Builder: %w", err)
+		return nil, fmt.Errorf("DeviceRepo - Get - r.Builder: %w", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, guid, tenantID)
 	if err != nil {
-		return entity.Device{}, fmt.Errorf("DeviceRepo - Get - r.Pool.Query: %w", err)
+		return nil, fmt.Errorf("DeviceRepo - Get - r.Pool.Query: %w", err)
 	}
 
 	defer rows.Close()
 
-	devices := make([]entity.Device, 0)
+	devices := make([]*entity.Device, 0)
 
 	for rows.Next() {
-		d := entity.Device{}
+		d := &entity.Device{}
 
 		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MpsInstance, &d.ConnectionStatus, &d.Mpsusername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned)
 		if err != nil {
@@ -150,7 +151,7 @@ func (r *DeviceRepo) GetByID(ctx context.Context, guid, tenantID string) (entity
 	}
 
 	if len(devices) == 0 {
-		return entity.Device{}, errors.New(postgres.NotFound)
+		return nil, errors.New(postgres.NotFound)
 	}
 
 	return devices[0], nil
@@ -315,6 +316,10 @@ func (r *DeviceRepo) Insert(ctx context.Context, d *entity.Device) (string, erro
 
 	err = r.Pool.QueryRow(ctx, sqlQuery, args...).Scan(&version)
 	if err != nil {
+		if postgres.CheckNotUnique(err) {
+			return "", fmt.Errorf("DeviceRepo - Insert - r.Pool.QueryRow: %w", consoleerrors.ErrNotUnique)
+		}
+
 		return "", fmt.Errorf("DeviceRepo - Insert - r.Pool.QueryRow: %w", err)
 	}
 

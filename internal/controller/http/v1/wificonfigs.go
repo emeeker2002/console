@@ -8,7 +8,6 @@ import (
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/wificonfigs"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
-	"github.com/open-amt-cloud-toolkit/console/pkg/postgres"
 )
 
 type WirelessConfigRoutes struct {
@@ -37,7 +36,7 @@ type WirelessConfigCountResponse struct {
 func (r *WirelessConfigRoutes) get(c *gin.Context) {
 	var odata OData
 	if err := c.ShouldBindQuery(&odata); err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
+		errorResponse(c, err)
 
 		return
 	}
@@ -45,7 +44,7 @@ func (r *WirelessConfigRoutes) get(c *gin.Context) {
 	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, "")
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - getCount")
-		errorResponse(c, http.StatusInternalServerError, "database problems")
+		errorResponse(c, err)
 
 		return
 	}
@@ -54,7 +53,7 @@ func (r *WirelessConfigRoutes) get(c *gin.Context) {
 		count, err := r.t.GetCount(c.Request.Context(), "")
 		if err != nil {
 			r.l.Error(err, "http - wireless configs - v1 - getCount")
-			errorResponse(c, http.StatusInternalServerError, "database problems")
+			errorResponse(c, err)
 		}
 
 		countResponse := WirelessConfigCountResponse{
@@ -73,13 +72,13 @@ func (r *WirelessConfigRoutes) getByName(c *gin.Context) {
 
 	config, err := r.t.GetByName(c.Request.Context(), profileName, "")
 	if err != nil {
-		if err.Error() == postgres.NotFound {
-			r.l.Error(err, "wireless Config "+profileName+" not found")
-			errorResponse(c, http.StatusNotFound, "Config not found")
-		} else {
-			r.l.Error(err, "http - wireless configs - v1 - getByName")
-			errorResponse(c, http.StatusInternalServerError, "database problems")
-		}
+		// if err.Error() == postgres.NotFound {
+		// 	r.l.Error(err, "wireless Config "+profileName+" not found")
+		// 	errorResponse(c, err)
+		// } else {
+		r.l.Error(err, "http - wireless configs - v1 - getByName")
+		errorResponse(c, err)
+		//}
 
 		return
 	}
@@ -90,96 +89,59 @@ func (r *WirelessConfigRoutes) getByName(c *gin.Context) {
 func (r *WirelessConfigRoutes) insert(c *gin.Context) {
 	var config entity.WirelessConfig
 	if err := c.ShouldBindJSON(&config); err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
+		errorResponse(c, err)
 
 		return
 	}
 
-	_, err := r.t.Insert(c.Request.Context(), &config)
+	insertedConfig, err := r.t.Insert(c.Request.Context(), &config)
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - insert")
 
-		if unique, errMsg := postgres.CheckUnique(err); !unique {
-			errorResponse(c, http.StatusBadRequest, errMsg)
-		} else {
-			errorResponse(c, http.StatusInternalServerError, "database problems")
-		}
+		errorResponse(c, err)
 
 		return
 	}
 
-	storedConfig, err := r.t.GetByName(c.Request.Context(), config.ProfileName, "")
-	if err != nil {
-
-		if err.Error() == postgres.NotFound {
-			r.l.Error(err, "wifi profile "+config.ProfileName+" not found")
-			errorResponse(c, http.StatusNotFound, "wifi profile not found")
-		} else {
-			r.l.Error(err, "http - v1 - getByName")
-			errorResponse(c, http.StatusInternalServerError, "database problems")
-		}
-
-		return
-	}
-
-	c.JSON(http.StatusCreated, storedConfig)
+	c.JSON(http.StatusCreated, insertedConfig)
 }
 
 func (r *WirelessConfigRoutes) update(c *gin.Context) {
 	var config entity.WirelessConfig
 	if err := c.ShouldBindJSON(&config); err != nil {
-		errorResponse(c, http.StatusBadRequest, err.Error())
+		errorResponse(c, err)
 
 		return
 	}
 
-	successfulUpdate, err := r.t.Update(c.Request.Context(), &config)
+	updatedWirelessConfig, err := r.t.Update(c.Request.Context(), &config)
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - update")
-		errorResponse(c, http.StatusInternalServerError, "database problems")
+		errorResponse(c, err)
 
 		return
 	}
 
-	storedConfig, err := r.t.GetByName(c.Request.Context(), config.ProfileName, "")
-	if err != nil {
+	// if !successfulUpdate {
+	// 	r.l.Error(err, "http - wireless configs - v1 - update")
+	// 	errorResponse(c, err)
 
-		if err.Error() == postgres.NotFound {
-			r.l.Error(err, "wireless config "+config.ProfileName+" not found")
-			errorResponse(c, http.StatusNotFound, "wireless config not found")
-		} else {
-			r.l.Error(err, "http - v1 - getByName")
-			errorResponse(c, http.StatusInternalServerError, "database problems")
-		}
+	// 	return
+	// }
 
-		return
-	}
-
-	if !successfulUpdate {
-		r.l.Error(err, "http - wireless configs - v1 - update")
-		errorResponse(c, http.StatusBadRequest, "wireless config unchanged")
-
-		return
-	}
-
-	c.JSON(http.StatusOK, storedConfig)
+	c.JSON(http.StatusOK, updatedWirelessConfig)
 }
 
 func (r *WirelessConfigRoutes) delete(c *gin.Context) {
 	configName := c.Param("profileName")
 
-	deleteSuccessful, err := r.t.Delete(c.Request.Context(), configName, "")
+	err := r.t.Delete(c.Request.Context(), configName, "")
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - delete")
-		errorResponse(c, http.StatusInternalServerError, "database problems")
+		errorResponse(c, err)
 
 		return
 	}
 
-	if !deleteSuccessful {
-		r.l.Error(err, "http - wireless configs - v1 - delete")
-		errorResponse(c, http.StatusNotFound, "wireless config not found")
-	}
-
-	c.JSON(http.StatusNoContent, deleteSuccessful)
+	c.JSON(http.StatusNoContent, nil)
 }
