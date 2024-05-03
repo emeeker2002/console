@@ -37,7 +37,7 @@ func (r *DeviceRepo) GetCount(ctx context.Context, tenantID string) (int, error)
 
 	var count int
 
-	err = r.Pool.QueryRow(ctx, sqlQuery, tenantID).Scan(&count)
+	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, nil
@@ -56,21 +56,20 @@ func (r *DeviceRepo) Get(ctx context.Context, top, skip int, tenantID string) ([
 	}
 
 	sqlQuery, _, err := r.Builder.
-		Select(`guid, 
-				hostname, 
-				tags, 
-				mpsinstance, 
-				connectionstatus, 
-				mpsusername, 
-				tenantid, 
-				friendlyname, 
-				dnssuffix, 
-				deviceinfo, 
-				username, 
-				password, 
-				usetls, 
-				allowselfsigned 
-		`).
+		Select("guid",
+			"hostname",
+			"tags",
+			"mpsinstance",
+			"connectionstatus",
+			"mpsusername",
+			"tenantid",
+			"friendlyname",
+			"dnssuffix",
+			"deviceinfo",
+			"username",
+			"password",
+			"usetls",
+			"allowselfsigned").
 		From("devices").
 		Where("tenantid = ?", tenantID).
 		OrderBy("guid").
@@ -81,7 +80,7 @@ func (r *DeviceRepo) Get(ctx context.Context, top, skip int, tenantID string) ([
 		return nil, fmt.Errorf("DeviceRepo - Get - r.Builder: %w", err)
 	}
 
-	rows, err := r.Pool.Query(ctx, sqlQuery, tenantID)
+	rows, err := r.Pool.Query(sqlQuery, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("DeviceRepo - Get - r.Pool.Query: %w", err)
 	}
@@ -107,21 +106,21 @@ func (r *DeviceRepo) Get(ctx context.Context, top, skip int, tenantID string) ([
 // GetByID -.
 func (r *DeviceRepo) GetByID(ctx context.Context, guid, tenantID string) (entity.Device, error) {
 	sqlQuery, _, err := r.Builder.
-		Select(`guid,
-				hostname,
-				tags,
-				mpsinstance,
-				connectionstatus,
-				mpsusername,
-				tenantid,
-				friendlyname,
-				dnssuffix,
-				deviceinfo,
-				username,
-				password,
-				usetls,
-				allowselfsigned
-		`).
+		Select(
+			"guid",
+			"hostname",
+			"tags",
+			"mpsinstance",
+			"connectionstatus",
+			"mpsusername",
+			"tenantid",
+			"friendlyname",
+			"dnssuffix",
+			"deviceinfo",
+			"username",
+			"password",
+			"usetls",
+			"allowselfsigned").
 		From("devices").
 		Where("guid = ? and tenantid = ?").
 		ToSql()
@@ -129,7 +128,7 @@ func (r *DeviceRepo) GetByID(ctx context.Context, guid, tenantID string) (entity
 		return entity.Device{}, fmt.Errorf("DeviceRepo - Get - r.Builder: %w", err)
 	}
 
-	rows, err := r.Pool.Query(ctx, sqlQuery, guid, tenantID)
+	rows, err := r.Pool.Query(sqlQuery, guid, tenantID)
 	if err != nil {
 		return entity.Device{}, fmt.Errorf("DeviceRepo - Get - r.Pool.Query: %w", err)
 	}
@@ -166,7 +165,7 @@ func (r *DeviceRepo) GetDistinctTags(ctx context.Context, tenantID string) ([]st
 		return []string{}, fmt.Errorf("DeviceRepo - GetDistinctTags - r.Builder: %w", err)
 	}
 
-	rows, err := r.Pool.Query(ctx, sqlQuery, tenantID)
+	rows, err := r.Pool.Query(sqlQuery, tenantID)
 	if err != nil {
 		return []string{}, fmt.Errorf("DeviceRepo - GetDistinctTags - r.Pool.Query: %w", err)
 	}
@@ -195,16 +194,16 @@ func (r *DeviceRepo) GetDistinctTags(ctx context.Context, tenantID string) ([]st
 
 func (r *DeviceRepo) GetByTags(ctx context.Context, tags []string, method string, limit, offset int, tenantID string) ([]entity.Device, error) {
 	builder := r.Builder.
-		Select(`guid,
-            hostname,
-            tags,
-            mpsinstance,
-            connectionstatus,
-            mpsusername,
-            tenantid,
-            friendlyname,
-            dnssuffix,
-            deviceinfo`).
+		Select("guid",
+			"hostname",
+			"tags",
+			"mpsinstance",
+			"connectionstatus",
+			"mpsusername",
+			"tenantid",
+			"friendlyname",
+			"dnssuffix",
+			"deviceinfo").
 		From("devices")
 	if method == "AND" {
 		builder = builder.Where("tags @> ? and tenantId = ?", tags, tenantID)
@@ -220,7 +219,7 @@ func (r *DeviceRepo) GetByTags(ctx context.Context, tags []string, method string
 		return []entity.Device{}, fmt.Errorf("DeviceRepo - GetByTags - r.Builder: %w", err)
 	}
 
-	rows, err := r.Pool.Query(ctx, sqlQuery, tags, tenantID)
+	rows, err := r.Pool.Query(sqlQuery, tags, tenantID)
 	if err != nil {
 		return []entity.Device{}, fmt.Errorf("DeviceRepo - GetByTags - r.Pool.Query: %w", err)
 	}
@@ -257,12 +256,17 @@ func (r *DeviceRepo) Delete(ctx context.Context, guid, tenantID string) (bool, e
 		return false, fmt.Errorf("DeviceRepo - Delete - r.Builder: %w", err)
 	}
 
-	res, err := r.Pool.Exec(ctx, sqlQuery, guid, tenantID)
+	res, err := r.Pool.Exec(sqlQuery, guid, tenantID)
 	if err != nil {
 		return false, fmt.Errorf("DeviceRepo - Delete - r.Pool.Exec: %w", err)
 	}
 
-	return res.RowsAffected() > 0, nil
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("DeviceRepo - Delete - res.RowsAffected: %w", err)
+	}
+
+	return rowsAffected > 0, nil
 }
 
 // Update -.
@@ -289,12 +293,17 @@ func (r *DeviceRepo) Update(ctx context.Context, d *entity.Device) (bool, error)
 		return false, fmt.Errorf("DeviceRepo - Update - r.Builder: %w", err)
 	}
 
-	res, err := r.Pool.Exec(ctx, sqlQuery, args...)
+	res, err := r.Pool.Exec(sqlQuery, args...)
 	if err != nil {
 		return false, fmt.Errorf("DeviceRepo - Update - r.Pool.Exec: %w", err)
 	}
 
-	return res.RowsAffected() > 0, nil
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("DeviceRepo - Delete - res.RowsAffected: %w", err)
+	}
+
+	return rowsAffected > 0, nil
 }
 
 // Insert -.
@@ -313,7 +322,7 @@ func (r *DeviceRepo) Insert(ctx context.Context, d *entity.Device) (string, erro
 
 	var version string
 
-	err = r.Pool.QueryRow(ctx, sqlQuery, args...).Scan(&version)
+	err = r.Pool.QueryRow(sqlQuery, args...).Scan(&version)
 	if err != nil {
 		return "", fmt.Errorf("DeviceRepo - Insert - r.Pool.QueryRow: %w", err)
 	}

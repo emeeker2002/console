@@ -36,7 +36,7 @@ func (r *IEEE8021xRepo) CheckProfileExists(ctx context.Context, profileName, ten
 
 	var count int
 
-	err = r.Pool.QueryRow(ctx, sqlQuery, tenantID).Scan(&count)
+	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return false, nil
@@ -61,7 +61,7 @@ func (r *IEEE8021xRepo) GetCount(ctx context.Context, tenantID string) (int, err
 
 	var count int
 
-	err = r.Pool.QueryRow(ctx, sqlQuery, tenantID).Scan(&count)
+	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, nil
@@ -80,14 +80,12 @@ func (r *IEEE8021xRepo) Get(ctx context.Context, top, skip int, tenantID string)
 	}
 
 	sqlQuery, _, err := r.Builder.
-		Select(`
-			    profile_name,
-        	auth_Protocol,
-        	pxe_timeout,
-       		wired_interface,
-        	tenant_id,
-          CAST(xmin as text) as xmin
-			`).
+		Select("profile_name",
+			"auth_Protocol",
+			"pxe_timeout",
+			"wired_interface",
+			"tenant_id",
+			"CAST(xmin as text) as xmin").
 		From("ieee8021xconfigs").
 		Where("tenant_id = ?", tenantID).
 		Limit(uint64(top)).
@@ -97,7 +95,7 @@ func (r *IEEE8021xRepo) Get(ctx context.Context, top, skip int, tenantID string)
 		return nil, fmt.Errorf("IEEE8021xRepo - Get - r.Builder: %w", err)
 	}
 
-	rows, err := r.Pool.Query(ctx, sqlQuery, tenantID)
+	rows, err := r.Pool.Query(sqlQuery, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("IEEE8021xRepo - Get - r.Pool.Query: %w", err)
 	}
@@ -123,14 +121,12 @@ func (r *IEEE8021xRepo) Get(ctx context.Context, top, skip int, tenantID string)
 // GetByName -.
 func (r *IEEE8021xRepo) GetByName(ctx context.Context, profileName, tenantID string) (entity.IEEE8021xConfig, error) {
 	sqlQuery, _, err := r.Builder.
-		Select(`
-			    profile_name,
-        	auth_Protocol,
-        	pxe_timeout,
-        	wired_interface,
-        	tenant_id,
-          CAST(xmin as text) as xmin
-			`).
+		Select("profile_name",
+			"auth_Protocol",
+			"pxe_timeout",
+			"wired_interface",
+			"tenant_id",
+			"CAST(xmin as text) as xmin").
 		From("ieee8021xconfigs").
 		Where("profile_name = ? and tenant_id = ?", profileName, tenantID).
 		ToSql()
@@ -138,7 +134,7 @@ func (r *IEEE8021xRepo) GetByName(ctx context.Context, profileName, tenantID str
 		return entity.IEEE8021xConfig{}, fmt.Errorf("IEEE8021xRepo - Get - r.Builder: %w", err)
 	}
 
-	rows, err := r.Pool.Query(ctx, sqlQuery, profileName, tenantID)
+	rows, err := r.Pool.Query(sqlQuery, profileName, tenantID)
 	if err != nil {
 		return entity.IEEE8021xConfig{}, fmt.Errorf("IEEE8021xRepo - Get - r.Pool.Query: %w", err)
 	}
@@ -175,12 +171,17 @@ func (r *IEEE8021xRepo) Delete(ctx context.Context, profileName, tenantID string
 		return false, fmt.Errorf("IEEE8021xRepo - Delete - r.Builder: %w", err)
 	}
 
-	res, err := r.Pool.Exec(ctx, sqlQuery, args...)
+	res, err := r.Pool.Exec(sqlQuery, args...)
 	if err != nil {
 		return false, fmt.Errorf("IEEE8021xRepo - Delete - r.Pool.Exec: %w", err)
 	}
 
-	return res.RowsAffected() > 0, nil
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("IEEE8021xRepo - Delete - res.RowsAffected: %w", err)
+	}
+
+	return rowsAffected > 0, nil
 }
 
 // Update -.
@@ -202,12 +203,17 @@ func (r *IEEE8021xRepo) Update(ctx context.Context, p *entity.IEEE8021xConfig) (
 		return false, fmt.Errorf("IEEE8021xRepo - Update - r.Builder: %w", err)
 	}
 
-	res, err := r.Pool.Exec(ctx, sqlQuery, args...)
+	res, err := r.Pool.Exec(sqlQuery, args...)
 	if err != nil {
 		return false, fmt.Errorf("IEEE8021xRepo - Update - r.Pool.Exec: %w", err)
 	}
 
-	return res.RowsAffected() > 0, nil
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("IEEE8021xRepo - Update - res.RowsAffected: %w", err)
+	}
+
+	return rowsAffected > 0, nil
 }
 
 // Insert -.
@@ -224,7 +230,7 @@ func (r *IEEE8021xRepo) Insert(ctx context.Context, p *entity.IEEE8021xConfig) (
 
 	var version string
 
-	err = r.Pool.QueryRow(ctx, sqlQuery, args...).Scan(&version)
+	err = r.Pool.QueryRow(sqlQuery, args...).Scan(&version)
 	if err != nil {
 		return "", fmt.Errorf("IEEE8021xRepo - Insert - r.Pool.QueryRow: %w", err)
 	}

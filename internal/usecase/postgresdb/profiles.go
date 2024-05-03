@@ -39,7 +39,7 @@ func (r *ProfileRepo) GetCount(ctx context.Context, tenantID string) (int, error
 
 	var count int
 
-	err = r.Pool.QueryRow(ctx, sqlQuery, tenantID).Scan(&count)
+	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, nil
@@ -59,27 +59,27 @@ func (r *ProfileRepo) Get(ctx context.Context, top, skip int, tenantID string) (
 	}
 
 	sqlQuery, _, err := r.Builder.
-		Select(`profile_name,
-            activation,
-            amt_password,
-            generate_random_password,
-            cira_config_name,
-            mebx_password,
-            generate_random_mebx_password,
-            tags,
-            dhcp_enabled,
-            tenant_id,
-            tls_mode,
-            user_consent,
-            ider_enabled,
-            kvm_enabled,
-            sol_enabled,
-            tls_signing_authority,
-            ip_sync_enabled,
-            local_wifi_sync_enabled,
-            ieee8021x_profile_name,
-            CAST(xmin as text) as xmin
-				`).
+		Select(
+			"profile_name",
+			"activation",
+			"amt_password",
+			"generate_random_password",
+			"cira_config_name",
+			"mebx_password",
+			"generate_random_mebx_password",
+			"tags",
+			"dhcp_enabled",
+			"tenant_id",
+			"tls_mode",
+			"user_consent",
+			"ider_enabled",
+			"kvm_enabled",
+			"sol_enabled",
+			"tls_signing_authority",
+			"ip_sync_enabled",
+			"local_wifi_sync_enabled",
+			"ieee8021x_profile_name",
+			"CAST(xmin as text) as xmin").
 		From("profiles").
 		Where("tenant_id = ?", tenantID).
 		OrderBy("profile_name").
@@ -90,7 +90,7 @@ func (r *ProfileRepo) Get(ctx context.Context, top, skip int, tenantID string) (
 		return nil, fmt.Errorf("ProfileRepo - Get - r.Builder: %w", err)
 	}
 
-	rows, err := r.Pool.Query(ctx, sqlQuery, tenantID)
+	rows, err := r.Pool.Query(sqlQuery, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("ProfileRepo - Get - r.Pool.Query: %w", err)
 	}
@@ -121,27 +121,26 @@ func (r *ProfileRepo) Get(ctx context.Context, top, skip int, tenantID string) (
 
 func (r *ProfileRepo) GetByName(ctx context.Context, profileName, tenantID string) (entity.Profile, error) {
 	sqlQuery, _, err := r.Builder.
-		Select(`profile_name,
-            activation,
-            amt_password,
-            generate_random_password,
-            cira_config_name,
-            mebx_password,
-            generate_random_mebx_password,
-            tags,
-            dhcp_enabled,
-            tenant_id,
-            tls_mode,
-            user_consent,
-            ider_enabled,
-            kvm_enabled,
-            sol_enabled,
-            tls_signing_authority,
-            ip_sync_enabled,
-            local_wifi_sync_enabled,
-            ieee8021x_profile_name,
-            CAST(xmin as text) as xmin
-				`).
+		Select("profile_name",
+			"activation",
+			"amt_password",
+			"generate_random_password",
+			"cira_config_name",
+			"mebx_password",
+			"generate_random_mebx_password",
+			"tags",
+			"dhcp_enabled",
+			"tenant_id",
+			"tls_mode",
+			"user_consent",
+			"ider_enabled",
+			"kvm_enabled",
+			"sol_enabled",
+			"tls_signing_authority",
+			"ip_sync_enabled",
+			"local_wifi_sync_enabled",
+			"ieee8021x_profile_name",
+			"CAST(xmin as text) as xmin").
 		From("profiles").
 		Where("profile_name = ? and tenant_id = ?", profileName, tenantID).
 		ToSql()
@@ -149,7 +148,7 @@ func (r *ProfileRepo) GetByName(ctx context.Context, profileName, tenantID strin
 		return entity.Profile{}, fmt.Errorf("ProfileRepo - GetByName - r.Builder: %w", err)
 	}
 
-	rows, err := r.Pool.Query(ctx, sqlQuery, profileName, tenantID)
+	rows, err := r.Pool.Query(sqlQuery, profileName, tenantID)
 	if err != nil {
 		return entity.Profile{}, fmt.Errorf("ProfileRepo - GetByName - r.Pool.Query: %w", err)
 	}
@@ -191,12 +190,17 @@ func (r *ProfileRepo) Delete(ctx context.Context, profileName, tenantID string) 
 		return false, fmt.Errorf("ProfileRepo - Delete - r.Builder: %w", err)
 	}
 
-	res, err := r.Pool.Exec(ctx, sqlQuery, args...)
+	res, err := r.Pool.Exec(sqlQuery, args...)
 	if err != nil {
 		return false, fmt.Errorf("ProfileRepo - Delete - r.Pool.Exec: %w", err)
 	}
 
-	return res.RowsAffected() > 0, nil
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("ProfileRepo - Delete - res.RowsAffected: %w", err)
+	}
+
+	return rowsAffected > 0, nil
 }
 
 // Update -.
@@ -228,12 +232,17 @@ func (r *ProfileRepo) Update(ctx context.Context, p *entity.Profile) (bool, erro
 		return false, fmt.Errorf("ProfileRepo - Update - r.Builder: %w", err)
 	}
 
-	res, err := r.Pool.Exec(ctx, sqlQuery, args...)
+	res, err := r.Pool.Exec(sqlQuery, args...)
 	if err != nil {
 		return false, fmt.Errorf("ProfileRepo - Update - r.Pool.Exec: %w", err)
 	}
 
-	return res.RowsAffected() > 0, nil
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("ProfileRepo - Update - res.RowsAffected: %w", err)
+	}
+
+	return rowsAffected > 0, nil
 }
 
 // Insert -.
@@ -267,7 +276,7 @@ func (r *ProfileRepo) Insert(ctx context.Context, p *entity.Profile) (string, er
 
 	var version string
 
-	err = r.Pool.QueryRow(ctx, sqlQuery, args...).Scan(&version)
+	err = r.Pool.QueryRow(sqlQuery, args...).Scan(&version)
 	if err != nil {
 		return "", fmt.Errorf("ProfileRepo - Insert - r.Pool.QueryRow: %w", err)
 	}

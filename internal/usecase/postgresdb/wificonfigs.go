@@ -37,7 +37,7 @@ func (r *WirelessRepo) CheckProfileExists(ctx context.Context, profileName, tena
 
 	var count int
 
-	err = r.Pool.QueryRow(ctx, sqlQuery, tenantID).Scan(&count)
+	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return false, nil
@@ -62,7 +62,7 @@ func (r *WirelessRepo) GetCount(ctx context.Context, tenantID string) (int, erro
 
 	var count int
 
-	err = r.Pool.QueryRow(ctx, sqlQuery, tenantID).Scan(&count)
+	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return 0, nil
@@ -81,18 +81,17 @@ func (r *WirelessRepo) Get(ctx context.Context, top, skip int, tenantID string) 
 	}
 
 	sqlQuery, _, err := r.Builder.
-		Select(`
-        wireless_profile_name,
-        authentication_method,
-        encryption_method,
-        ssid,
-        psk_value,
-        psk_passphrase,
-        link_policy,
-        tenant_id,
-        ieee8021x_profile_name,
-        CAST(xmin as text) as xmin
-			`).
+		Select(
+			"wireless_profile_name",
+			"authentication_method",
+			"encryption_method",
+			"ssid",
+			"psk_value",
+			"psk_passphrase",
+			"link_policy",
+			"tenant_id",
+			"ieee8021x_profile_name",
+			"CAST(xmin as text) as xmin").
 		From("wirelessconfigs").
 		Where("tenant_id = ?", tenantID).
 		OrderBy("wireless_profile_name").
@@ -103,7 +102,7 @@ func (r *WirelessRepo) Get(ctx context.Context, top, skip int, tenantID string) 
 		return nil, fmt.Errorf("WirelessRepo - Get - r.Builder: %w", err)
 	}
 
-	rows, err := r.Pool.Query(ctx, sqlQuery, tenantID)
+	rows, err := r.Pool.Query(sqlQuery, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("WirelessRepo - Get - r.Pool.Query: %w", err)
 	}
@@ -129,18 +128,17 @@ func (r *WirelessRepo) Get(ctx context.Context, top, skip int, tenantID string) 
 // GetByName -.
 func (r *WirelessRepo) GetByName(ctx context.Context, profileName, tenantID string) (entity.WirelessConfig, error) {
 	sqlQuery, _, err := r.Builder.
-		Select(`
-			wireless_profile_name,
-			authentication_method,
-			encryption_method,
-			ssid,
-			psk_value,
-			psk_passphrase,
-			link_policy,
-			tenant_id,
-			ieee8021x_profile_name,
-			CAST(xmin as text) as xmin
-			`).
+		Select(
+			"wireless_profile_name",
+			"authentication_method",
+			"encryption_method",
+			"ssid",
+			"psk_value",
+			"psk_passphrase",
+			"link_policy",
+			"tenant_id",
+			"ieee8021x_profile_name",
+			"CAST(xmin as text) as xmin").
 		From("wirelessconfigs").
 		Where("wireless_profile_name = ? and tenant_id = ?", profileName, tenantID).
 		ToSql()
@@ -148,7 +146,7 @@ func (r *WirelessRepo) GetByName(ctx context.Context, profileName, tenantID stri
 		return entity.WirelessConfig{}, fmt.Errorf("WirelessRepo - GetByName - r.Builder: %w", err)
 	}
 
-	rows, err := r.Pool.Query(ctx, sqlQuery, profileName, tenantID)
+	rows, err := r.Pool.Query(sqlQuery, profileName, tenantID)
 	if err != nil {
 		return entity.WirelessConfig{}, fmt.Errorf("WirelessRepo - GetByName - r.Pool.Query: %w", err)
 	}
@@ -185,12 +183,17 @@ func (r *WirelessRepo) Delete(ctx context.Context, profileName, tenantID string)
 		return false, fmt.Errorf("WirelessRepo - Delete - r.Builder: %w", err)
 	}
 
-	res, err := r.Pool.Exec(ctx, sqlQuery, args...)
+	res, err := r.Pool.Exec(sqlQuery, args...)
 	if err != nil {
 		return false, fmt.Errorf("WirelessRepo - Delete - r.Pool.Exec: %w", err)
 	}
 
-	return res.RowsAffected() > 0, nil
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("WirelessRepo - Delete - res.RowsAffected: %w", err)
+	}
+
+	return rowsAffected > 0, nil
 }
 
 // Update -.
@@ -211,12 +214,17 @@ func (r *WirelessRepo) Update(ctx context.Context, p *entity.WirelessConfig) (bo
 		return false, fmt.Errorf("WirelessRepo - Update - r.Builder: %w", err)
 	}
 
-	res, err := r.Pool.Exec(ctx, sqlQuery, args...)
+	res, err := r.Pool.Exec(sqlQuery, args...)
 	if err != nil {
 		return false, fmt.Errorf("WirelessRepo - Update - r.Pool.Exec: %w", err)
 	}
 
-	return res.RowsAffected() > 0, nil
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("WirelessRepo - Update - res.RowsAffected: %w", err)
+	}
+
+	return rowsAffected > 0, nil
 }
 
 // Insert -.
@@ -243,7 +251,7 @@ func (r *WirelessRepo) Insert(ctx context.Context, p *entity.WirelessConfig) (st
 
 	var version string
 
-	err = r.Pool.QueryRow(ctx, sqlQuery, args...).Scan(&version)
+	err = r.Pool.QueryRow(sqlQuery, args...).Scan(&version)
 	if err != nil {
 		return "", fmt.Errorf("WirelessRepo - Insert - r.Pool.QueryRow: %w", err)
 	}

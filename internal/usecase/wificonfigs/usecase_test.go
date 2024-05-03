@@ -10,6 +10,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/wificonfigs"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 )
@@ -351,7 +352,7 @@ func TestUpdate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			wirelessconfig := &entity.WirelessConfig{
+			wirelessconfig := &dto.WirelessConfig{
 				ProfileName: "example-wirelessconfig",
 				TenantID:    "tenant-id-456",
 				Version:     "123",
@@ -400,7 +401,7 @@ func TestInsert(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			wirelessconfig := &entity.WirelessConfig{
+			wirelessconfig := &dto.WirelessConfig{
 				ProfileName: "new-wirelessconfig",
 				TenantID:    "tenant-id-789",
 				Version:     "123",

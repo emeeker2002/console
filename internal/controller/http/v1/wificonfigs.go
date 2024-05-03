@@ -1,17 +1,14 @@
 package v1
 
 import (
-	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgconn"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/wificonfigs"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
-	"github.com/open-amt-cloud-toolkit/console/pkg/postgres"
 )
 
 type WirelessConfigRoutes struct {
@@ -30,11 +27,6 @@ func newWirelessConfigRoutes(handler *gin.RouterGroup, t wificonfigs.Feature, l 
 		h.PATCH("", r.update)
 		h.DELETE(":profileName", r.delete)
 	}
-}
-
-type WirelessConfigCountResponse struct {
-	Count int                     `json:"totalCount"`
-	Data  []entity.WirelessConfig `json:"data"`
 }
 
 func (r *WirelessConfigRoutes) get(c *gin.Context) {
@@ -60,7 +52,7 @@ func (r *WirelessConfigRoutes) get(c *gin.Context) {
 			errorResponse(c, http.StatusInternalServerError, "database problems")
 		}
 
-		countResponse := WirelessConfigCountResponse{
+		countResponse := dto.WirelessConfigCountResponse{
 			Count: count,
 			Data:  items,
 		}
@@ -91,7 +83,7 @@ func (r *WirelessConfigRoutes) getByName(c *gin.Context) {
 }
 
 func (r *WirelessConfigRoutes) insert(c *gin.Context) {
-	var config entity.WirelessConfig
+	var config dto.WirelessConfig
 	if err := c.ShouldBindJSON(&config); err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 
@@ -102,14 +94,14 @@ func (r *WirelessConfigRoutes) insert(c *gin.Context) {
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - insert")
 
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == postgres.UniqueViolation {
-				errorResponse(c, http.StatusBadRequest, pgErr.Message)
-			}
+		// var pgErr *pgconn.PgError
+		// if errors.As(err, &pgErr) {
+		// 	if pgErr.Code == postgres.UniqueViolation {
+		// 		errorResponse(c, http.StatusBadRequest, pgErr.Message)
+		// 	}
 
-			return
-		}
+		// 	return
+		// }
 
 		errorResponse(c, http.StatusInternalServerError, "database problems")
 
@@ -120,7 +112,7 @@ func (r *WirelessConfigRoutes) insert(c *gin.Context) {
 }
 
 func (r *WirelessConfigRoutes) update(c *gin.Context) {
-	var config entity.WirelessConfig
+	var config dto.WirelessConfig
 	if err := c.ShouldBindJSON(&config); err != nil {
 		errorResponse(c, http.StatusBadRequest, err.Error())
 
