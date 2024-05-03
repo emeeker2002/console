@@ -902,3 +902,18 @@ func (g *GoWSMANMessages) GetNetworkSettings() (interface{}, error) {
 
 	return networkResults, nil
 }
+
+func (g *GoWSMANMessages) GetCertificates() (interface{}, error) {
+	// certificates := map[string]interface{}{}
+	response, err := g.wsmanMessages.AMT.TLSCredentialContext.Enumerate()
+	if err != nil {
+		return nil, err
+	}
+
+	response, err = g.wsmanMessages.AMT.TLSCredentialContext.Pull(response.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
