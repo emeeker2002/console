@@ -1,14 +1,20 @@
 package entity
 
+import (
+	"fmt"
+
+	"github.com/go-playground/validator/v10"
+)
+
 type Profile struct {
 	ProfileName                string               `json:"profileName,omitempty" binding:"required" example:"My Profile"`
-	AMTPassword                string               `json:"amtPassword,omitempty" binding:"required_without=GenerateRandomPassword,len=0|min=8,max=32" example:"my_password"`
+	AMTPassword                string               `json:"amtPassword,omitempty" binding:"required_without=GenerateRandomPassword,len=0|min=8,max=32,genpasswordwone" example:"my_password"`
 	CreationDate               string               `json:"creationDate,omitempty" example:"2021-07-01T00:00:00Z"`
 	CreatedBy                  string               `json:"created_by,omitempty" example:"admin"`
 	GenerateRandomPassword     bool                 `json:"generateRandomPassword,omitempty" example:"true"`
-	CIRAConfigName             *string              `json:"ciraConfigName,omitempty" example:"My CIRA Config"`
+	CIRAConfigName             *string              `json:"ciraConfigName,omitempty" binding:"omitempty,ciraortls" example:"My CIRA Config"`
 	Activation                 string               `json:"activation" binding:"required,oneof=ccmactivate acmactivate" example:"activate"`
-	MEBXPassword               string               `json:"mebxPassword,omitempty" binding:"required_without=GenerateRandomMEBxPassword" example:"my_password"`
+	MEBXPassword               string               `json:"mebxPassword,omitempty" binding:"ccmactivation,len=0|min=8,max=32" example:"my_password"`
 	GenerateRandomMEBxPassword bool                 `json:"generateRandomMEBxPassword,omitempty" example:"true"`
 	CIRAConfigObject           *CIRAConfig          `json:"ciraConfigObject,omitempty"`
 	Tags                       []string             `json:"tags,omitempty" example:"tag1,tag2"`
@@ -47,3 +53,42 @@ const (
 	UserConsentAll     string = "All"
 	UserConsentKVMOnly string = "KVM"
 )
+
+var ValidateCIRAOrTLS validator.Func = func(fl validator.FieldLevel) bool {
+	tlsMode := fl.Parent().FieldByName("TLSMode").Interface().(int)
+	if tlsMode != 0 {
+		return false
+
+	}
+	return true
+}
+
+var GenPasswordWithOne validator.Func = func(fl validator.FieldLevel) bool {
+	randPassword := fl.Parent().FieldByName("GenerateRandomPassword").Interface().(bool)
+	password := fl.Parent().FieldByName("AMTPassword").Interface().(string)
+	fmt.Println(randPassword)
+	fmt.Println(password)
+	if randPassword && password != "" {
+		fmt.Println("it was passed")
+		return false
+
+	}
+	return true
+}
+
+var ValidateCCMActivation validator.Func = func(fl validator.FieldLevel) bool {
+	activation := fl.Parent().FieldByName("Activation").String()
+
+	if activation == "ccmactivate" {
+		return true
+	}
+
+	generateRandom := fl.Parent().FieldByName("GenerateRandomMEBxPassword").Bool()
+	mebXPassword := fl.Parent().FieldByName("MEBXPassword").String()
+
+	if !generateRandom && mebXPassword == "" {
+		return false
+	}
+
+	return true
+}

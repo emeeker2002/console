@@ -34,6 +34,27 @@ func newProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Int
 			l.Error(err, "error registering validation")
 		}
 	}
+
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		err := v.RegisterValidation("ciraortls", entity.ValidateCIRAOrTLS)
+		if err != nil {
+			l.Error(err, "error Cannot have both CIRA and TLS values")
+		}
+	}
+
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		err := v.RegisterValidation("ccmactivation", entity.ValidateCCMActivation)
+		if err != nil {
+			l.Error(err, "error MEBXPassword is left blank")
+		}
+	}
+
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		err := v.RegisterValidation("genpasswordwone", entity.GenPasswordWithOne)
+		if err != nil {
+			l.Error(err, "error Both password provided and asked to generate one")
+		}
+	}
 }
 
 type ProfileCountResponse struct {
