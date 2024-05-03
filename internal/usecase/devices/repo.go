@@ -8,11 +8,15 @@ import (
 	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 )
 
+var ErrDomainsUseCase = consoleerrors.CreateConsoleError("DevicesUseCase")
+var ErrDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("DevicesUseCase")}
+var ErrNotFound = consoleerrors.NotFoundError{consoleerrors.CreateConsoleError("DevicesUseCase")}
+
 // History - getting translate history from store.
 func (uc *UseCase) GetCount(ctx context.Context, tenantID string) (int, error) {
 	count, err := uc.repo.GetCount(ctx, tenantID)
 	if err != nil {
-		return 0, fmt.Errorf("DevicesUseCase - Count - s.repo.GetCount: %w", err)
+		return 0, ErrDatabase.Wrap("Count", "uc.repo.GetCount", err)
 	}
 
 	return count, nil
@@ -21,7 +25,7 @@ func (uc *UseCase) GetCount(ctx context.Context, tenantID string) (int, error) {
 func (uc *UseCase) Get(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
 	data, err := uc.repo.Get(ctx, top, skip, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("DevicesUseCase - Get - s.repo.Get: %w", err)
+		return nil, ErrDatabase.Wrap("Get", "uc.repo.Get", err)
 	}
 
 	return data, nil
@@ -30,7 +34,11 @@ func (uc *UseCase) Get(ctx context.Context, top, skip int, tenantID string) ([]e
 func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string) (*entity.Device, error) {
 	data, err := uc.repo.GetByID(ctx, guid, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("DevicesUseCase - GetByID - s.repo.GetByID: %w", err)
+		return nil, ErrDatabase.Wrap("GetByID", "uc.repo.GetByID", err)
+	}
+
+	if data == nil {
+		return nil, ErrNotFound
 	}
 
 	return data, nil
@@ -39,7 +47,7 @@ func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string) (*entity.
 func (uc *UseCase) GetDistinctTags(ctx context.Context, tenantID string) ([]string, error) {
 	data, err := uc.repo.GetDistinctTags(ctx, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("DevicesUseCase - GetDistinctTags - s.repo.GetDistinctTags: %w", err)
+		return nil, ErrDatabase.Wrap("GetDistinctTags", "uc.repo.GetDistinctTags", err)
 	}
 
 	return data, nil
@@ -48,7 +56,7 @@ func (uc *UseCase) GetDistinctTags(ctx context.Context, tenantID string) ([]stri
 func (uc *UseCase) GetByTags(ctx context.Context, tags []string, method string, limit, offset int, tenantID string) ([]entity.Device, error) {
 	data, err := uc.repo.GetByTags(ctx, tags, method, limit, offset, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("DevicesUseCase - GetByTags - s.repo.GetByTags: %w", err)
+		return nil, fmt.Errorf("DevicesUseCase - GetByTags - uc.repo.GetByTags: %w", err)
 	}
 
 	return data, nil
@@ -57,11 +65,11 @@ func (uc *UseCase) GetByTags(ctx context.Context, tags []string, method string, 
 func (uc *UseCase) Delete(ctx context.Context, guid, tenantID string) error {
 	isSuccessful, err := uc.repo.Delete(ctx, guid, tenantID)
 	if err != nil {
-		return fmt.Errorf("DevicesUseCase - Delete - s.repo.Delete: %w", err)
+		return ErrDatabase.Wrap("Delete", "uc.repo.Delete", err)
 	}
 
 	if !isSuccessful {
-		return consoleerrors.ErrNotFound
+		return ErrNotFound
 	}
 
 	return nil
@@ -70,7 +78,7 @@ func (uc *UseCase) Delete(ctx context.Context, guid, tenantID string) error {
 func (uc *UseCase) Update(ctx context.Context, d *entity.Device) (*entity.Device, error) {
 	_, err := uc.repo.Update(ctx, d)
 	if err != nil {
-		return nil, fmt.Errorf("DevicesUseCase - Update - s.repo.Update: %w", err)
+		return nil, ErrDatabase.Wrap("Update", "uc.repo.Update", err)
 	}
 
 	updateDevice, err := uc.repo.GetByID(ctx, d.GUID, "")
@@ -84,7 +92,7 @@ func (uc *UseCase) Update(ctx context.Context, d *entity.Device) (*entity.Device
 func (uc *UseCase) Insert(ctx context.Context, d *entity.Device) (*entity.Device, error) {
 	_, err := uc.repo.Insert(ctx, d)
 	if err != nil {
-		return nil, fmt.Errorf("DevicesUseCase - Insert - s.repo.Insert: %w", err)
+		return nil, ErrDatabase.Wrap("Insert", "uc.repo.Insert", err)
 	}
 
 	newDevice, err := uc.repo.GetByID(ctx, d.GUID, "")

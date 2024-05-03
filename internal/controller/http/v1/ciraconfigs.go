@@ -36,6 +36,7 @@ type CIRAConfigCountResponse struct {
 func (r *ciraConfigRoutes) get(c *gin.Context) {
 	var odata OData
 	if err := c.ShouldBindQuery(&odata); err != nil {
+		r.l.Error(err, "http - CIRA configs - v1 - getCount")
 		errorResponse(c, err)
 
 		return
@@ -72,13 +73,8 @@ func (r *ciraConfigRoutes) getByName(c *gin.Context) {
 
 	foundConfig, err := r.cira.GetByName(c.Request.Context(), configName, "")
 	if err != nil {
-		// if err.Error() == postgres.NotFound {
-		// 	r.l.Error(err, "CIRA Config "+configName+" not found")
-		// 	errorResponse(c, http.StatusNotFound, "cira config not found")
-		// } else {
 		r.l.Error(err, "http - CIRA configs - v1 - getByName")
 		errorResponse(c, err)
-		//}
 
 		return
 	}
@@ -89,6 +85,7 @@ func (r *ciraConfigRoutes) getByName(c *gin.Context) {
 func (r *ciraConfigRoutes) insert(c *gin.Context) {
 	var config entity.CIRAConfig
 	if err := c.ShouldBindJSON(&config); err != nil {
+		r.l.Error(err, "http - CIRA configs - v1 - insert")
 		errorResponse(c, err)
 
 		return
@@ -97,12 +94,7 @@ func (r *ciraConfigRoutes) insert(c *gin.Context) {
 	newCiraConfig, err := r.cira.Insert(c.Request.Context(), &config)
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - insert")
-
-		// if unique, errMsg := postgres.CheckUnique(err); !unique {
-		// 	errorResponse(c, http.StatusBadRequest, errMsg)
-		// } else {
 		errorResponse(c, err)
-		//}
 
 		return
 	}
@@ -113,6 +105,7 @@ func (r *ciraConfigRoutes) insert(c *gin.Context) {
 func (r *ciraConfigRoutes) update(c *gin.Context) {
 	var config entity.CIRAConfig
 	if err := c.ShouldBindJSON(&config); err != nil {
+		r.l.Error(err, "http - CIRA configs - v1 - update")
 		errorResponse(c, err)
 
 		return
@@ -125,12 +118,6 @@ func (r *ciraConfigRoutes) update(c *gin.Context) {
 
 		return
 	}
-
-	// if !updated {
-	// 	errorResponse(c, http.StatusNotFound, "not found")
-
-	// 	return
-	// }
 
 	c.JSON(http.StatusOK, updatedConfig)
 }

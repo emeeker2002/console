@@ -11,6 +11,7 @@ import (
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/ciraconfigs"
+	"github.com/open-amt-cloud-toolkit/console/internal/usecase/postgresdb"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 )
 
@@ -18,8 +19,6 @@ var (
 	errInternalServErr = errors.New("internal server error")
 	errDB              = errors.New("database error")
 	errGetByName       = fmt.Errorf("CIRAConfigsUseCase - GetByName - s.repo.GetByName: ciraconfig not found")
-	errDelete          = fmt.Errorf("CIRAConfigsUseCase - Delete - s.repo.Delete: ciraconfig not found")
-	errNotFound        = errors.New("ciraconfig not found")
 )
 
 type test struct {
@@ -62,10 +61,10 @@ func TestGetCount(t *testing.T) {
 		{
 			name: "result with error",
 			mock: func(repo *MockRepository) {
-				repo.EXPECT().GetCount(context.Background(), "").Return(0, errInternalServErr)
+				repo.EXPECT().GetCount(context.Background(), "").Return(0, postgresdb.ErrCIRARepoDatabase)
 			},
 			res: 0,
-			err: errInternalServErr,
+			err: ciraconfigs.ErrDatabase,
 		},
 	}
 
@@ -81,8 +80,8 @@ func TestGetCount(t *testing.T) {
 
 			res, err := useCase.GetCount(context.Background(), "")
 
-			require.Equal(t, res, tc.res)
-			require.ErrorIs(t, err, tc.err)
+			require.Equal(t, tc.res, res)
+			require.IsType(t, tc.err, err)
 		})
 	}
 }
@@ -169,7 +168,7 @@ func TestGet(t *testing.T) {
 func TestGetByName(t *testing.T) {
 	t.Parallel()
 
-	ciraconfig := entity.CIRAConfig{
+	ciraconfig := &entity.CIRAConfig{
 		ConfigName: "test-config",
 		TenantID:   "tenant-id-456",
 		Version:    "1.0.0",
@@ -199,10 +198,10 @@ func TestGetByName(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					GetByName(context.Background(), "unknown-ciraconfig", "tenant-id-456").
-					Return(entity.CIRAConfig{}, errNotFound)
+					Return(nil, nil)
 			},
-			res: entity.CIRAConfig{},
-			err: errGetByName,
+			res: nil,
+			err: ciraconfigs.ErrNotFound,
 		},
 	}
 
@@ -217,11 +216,10 @@ func TestGetByName(t *testing.T) {
 
 			res, err := useCase.GetByName(context.Background(), tc.input.ConfigName, tc.input.TenantID)
 
-			require.Equal(t, tc.res, res)
-
 			if tc.err != nil {
 				require.Contains(t, err.Error(), tc.err.Error())
 			} else {
+				require.Equal(t, tc.res, res)
 				require.NoError(t, err)
 			}
 		})
@@ -250,9 +248,9 @@ func TestDelete(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					Delete(context.Background(), "nonexistent-ciraconfig", "tenant-id-456").
-					Return(false, errNotFound)
+					Return(false, nil)
 			},
-			err: errDelete,
+			err: ciraconfigs.ErrNotFound,
 		},
 	}
 
@@ -293,8 +291,11 @@ func TestUpdate(t *testing.T) {
 				repo.EXPECT().
 					Update(context.Background(), ciraconfig).
 					Return(true, nil)
+				repo.EXPECT().
+					GetByName(context.Background(), "test-config", "tenant-id-456").
+					Return(ciraconfig, nil)
 			},
-			res: true,
+			res: ciraconfig,
 			err: nil,
 		},
 		{
@@ -304,8 +305,8 @@ func TestUpdate(t *testing.T) {
 					Update(context.Background(), ciraconfig).
 					Return(false, errInternalServErr)
 			},
-			res: false,
-			err: errInternalServErr,
+			res: (*entity.CIRAConfig)(nil),
+			err: ciraconfigs.ErrDatabase,
 		},
 	}
 
@@ -321,7 +322,7 @@ func TestUpdate(t *testing.T) {
 			result, err := useCase.Update(context.Background(), ciraconfig)
 
 			require.Equal(t, tc.res, result)
-			require.ErrorIs(t, err, tc.err)
+			require.IsType(t, tc.err, err)
 		})
 	}
 }
@@ -342,8 +343,11 @@ func TestInsert(t *testing.T) {
 				repo.EXPECT().
 					Insert(context.Background(), ciraconfig).
 					Return("unique-ciraconfig-id", nil)
+				repo.EXPECT().
+					GetByName(context.Background(), "test-config", "tenant-id-456").
+					Return(ciraconfig, nil)
 			},
-			res: "unique-ciraconfig-id",
+			res: ciraconfig,
 			err: nil,
 		},
 		{
@@ -353,8 +357,8 @@ func TestInsert(t *testing.T) {
 					Insert(context.Background(), ciraconfig).
 					Return("", errInternalServErr)
 			},
-			res: "",
-			err: errInternalServErr,
+			res: (*entity.CIRAConfig)(nil),
+			err: ciraconfigs.ErrDatabase,
 		},
 	}
 

@@ -3,7 +3,6 @@ package postgresdb
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -20,6 +19,9 @@ type DeviceRepo struct {
 	log logger.Interface
 }
 
+var ErrDeviceDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("DeviceRepo")}
+var ErrDeviceNotUnique = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("DeviceRepo")}
+
 // New -.
 func NewDeviceRepo(pg *postgres.DB, log logger.Interface) *DeviceRepo {
 	return &DeviceRepo{pg, log}
@@ -33,7 +35,7 @@ func (r *DeviceRepo) GetCount(ctx context.Context, tenantID string) (int, error)
 		Where("tenantid = ?", tenantID).
 		ToSql()
 	if err != nil {
-		return 0, fmt.Errorf("DeviceRepo - GetCount - r.Builder: %w", err)
+		return 0, ErrDeviceDatabase.Wrap("GetCount", "r.Builder: ", err)
 	}
 
 	var count int
@@ -44,7 +46,7 @@ func (r *DeviceRepo) GetCount(ctx context.Context, tenantID string) (int, error)
 			return 0, nil
 		}
 
-		return 0, fmt.Errorf("DeviceRepo - GetCount - r.Pool.QueryRow: %w", err)
+		return 0, ErrDeviceDatabase.Wrap("GetCount", "r.Pool.QueryRow", err)
 	}
 
 	return count, nil
@@ -79,12 +81,12 @@ func (r *DeviceRepo) Get(ctx context.Context, top, skip int, tenantID string) ([
 		Offset(uint64(skip)).
 		ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("DeviceRepo - Get - r.Builder: %w", err)
+		return nil, ErrDeviceDatabase.Wrap("Get", "r.Builder: ", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("DeviceRepo - Get - r.Pool.Query: %w", err)
+		return nil, ErrDeviceDatabase.Wrap("Get", "r.Pool.Query", err)
 	}
 
 	defer rows.Close()
@@ -96,7 +98,7 @@ func (r *DeviceRepo) Get(ctx context.Context, top, skip int, tenantID string) ([
 
 		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MpsInstance, &d.ConnectionStatus, &d.Mpsusername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned)
 		if err != nil {
-			return nil, fmt.Errorf("DeviceRepo - Get - rows.Scan: %w", err)
+			return nil, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
 		}
 
 		domains = append(domains, d)
@@ -127,12 +129,12 @@ func (r *DeviceRepo) GetByID(ctx context.Context, guid, tenantID string) (*entit
 		Where("guid = ? and tenantid = ?").
 		ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("DeviceRepo - Get - r.Builder: %w", err)
+		return nil, ErrDeviceDatabase.Wrap("Get", "r.Builder: ", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, guid, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("DeviceRepo - Get - r.Pool.Query: %w", err)
+		return nil, ErrDeviceDatabase.Wrap("Get", "r.Pool.Query", err)
 	}
 
 	defer rows.Close()
@@ -144,14 +146,14 @@ func (r *DeviceRepo) GetByID(ctx context.Context, guid, tenantID string) (*entit
 
 		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MpsInstance, &d.ConnectionStatus, &d.Mpsusername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned)
 		if err != nil {
-			return d, fmt.Errorf("DeviceRepo - Get - rows.Scan: %w", err)
+			return d, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
 		}
 
 		devices = append(devices, d)
 	}
 
 	if len(devices) == 0 {
-		return nil, errors.New(postgres.NotFound)
+		return nil, nil
 	}
 
 	return devices[0], nil
@@ -164,12 +166,12 @@ func (r *DeviceRepo) GetDistinctTags(ctx context.Context, tenantID string) ([]st
 		Where("tenantid = ?", tenantID).
 		ToSql()
 	if err != nil {
-		return []string{}, fmt.Errorf("DeviceRepo - GetDistinctTags - r.Builder: %w", err)
+		return []string{}, ErrDeviceDatabase.Wrap("GetDistinctTags", "r.Builder: ", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, tenantID)
 	if err != nil {
-		return []string{}, fmt.Errorf("DeviceRepo - GetDistinctTags - r.Pool.Query: %w", err)
+		return []string{}, ErrDeviceDatabase.Wrap("GetDistinctTags", "r.Pool.Query", err)
 	}
 
 	defer rows.Close()
@@ -181,7 +183,7 @@ func (r *DeviceRepo) GetDistinctTags(ctx context.Context, tenantID string) ([]st
 
 		err = rows.Scan(&tag)
 		if err != nil {
-			return []string{tag}, fmt.Errorf("DeviceRepo - GetDistinctTags - rows.Scan: %w", err)
+			return []string{tag}, ErrDeviceDatabase.Wrap("GetDistinctTags", "rows.Scan: ", err)
 		}
 
 		tags = append(tags, tag)
@@ -218,12 +220,12 @@ func (r *DeviceRepo) GetByTags(ctx context.Context, tags []string, method string
 		Offset(uint64(offset)).
 		ToSql()
 	if err != nil {
-		return []entity.Device{}, fmt.Errorf("DeviceRepo - GetByTags - r.Builder: %w", err)
+		return []entity.Device{}, ErrDeviceDatabase.Wrap("GetByTags", "r.Builder: ", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, tags, tenantID)
 	if err != nil {
-		return []entity.Device{}, fmt.Errorf("DeviceRepo - GetByTags - r.Pool.Query: %w", err)
+		return []entity.Device{}, ErrDeviceDatabase.Wrap("GetByTags", "r.Pool.Query", err)
 	}
 
 	defer rows.Close()
@@ -235,7 +237,7 @@ func (r *DeviceRepo) GetByTags(ctx context.Context, tags []string, method string
 
 		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MpsInstance, &d.ConnectionStatus, &d.Mpsusername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo)
 		if err != nil {
-			return []entity.Device{d}, fmt.Errorf("DeviceRepo - GetByTags - rows.Scan: %w", err)
+			return []entity.Device{d}, ErrDeviceDatabase.Wrap("GetByTags", "rows.Scan", err)
 		}
 
 		devices = append(devices, d)
@@ -255,12 +257,12 @@ func (r *DeviceRepo) Delete(ctx context.Context, guid, tenantID string) (bool, e
 		Where("guid = ? AND tenantid = ?", guid, tenantID).
 		ToSql()
 	if err != nil {
-		return false, fmt.Errorf("DeviceRepo - Delete - r.Builder: %w", err)
+		return false, ErrDeviceDatabase.Wrap("Delete", "r.Builder", err)
 	}
 
 	res, err := r.Pool.Exec(ctx, sqlQuery, guid, tenantID)
 	if err != nil {
-		return false, fmt.Errorf("DeviceRepo - Delete - r.Pool.Exec: %w", err)
+		return false, ErrDeviceDatabase.Wrap("Delete", "r.Pool.Exec", err)
 	}
 
 	return res.RowsAffected() > 0, nil
@@ -287,12 +289,12 @@ func (r *DeviceRepo) Update(ctx context.Context, d *entity.Device) (bool, error)
 		Where("guid = ? AND tenantid = ?", d.GUID, d.TenantID).
 		ToSql()
 	if err != nil {
-		return false, fmt.Errorf("DeviceRepo - Update - r.Builder: %w", err)
+		return false, ErrDeviceDatabase.Wrap("Update", "r.Builder", err)
 	}
 
 	res, err := r.Pool.Exec(ctx, sqlQuery, args...)
 	if err != nil {
-		return false, fmt.Errorf("DeviceRepo - Update - r.Pool.Exec: %w", err)
+		return false, ErrDeviceDatabase.Wrap("Update", "r.Pool.Exec", err)
 	}
 
 	return res.RowsAffected() > 0, nil
@@ -309,7 +311,7 @@ func (r *DeviceRepo) Insert(ctx context.Context, d *entity.Device) (string, erro
 		Suffix("RETURNING xmin::text").
 		ToSql()
 	if err != nil {
-		return "", fmt.Errorf("DeviceRepo - Insert - r.Builder: %w", err)
+		return "", ErrDeviceDatabase.Wrap("Insert", "r.Builder", err)
 	}
 
 	var version string
@@ -317,10 +319,10 @@ func (r *DeviceRepo) Insert(ctx context.Context, d *entity.Device) (string, erro
 	err = r.Pool.QueryRow(ctx, sqlQuery, args...).Scan(&version)
 	if err != nil {
 		if postgres.CheckNotUnique(err) {
-			return "", fmt.Errorf("DeviceRepo - Insert - r.Pool.QueryRow: %w", consoleerrors.ErrNotUnique)
+			return "", ErrDeviceNotUnique
 		}
 
-		return "", fmt.Errorf("DeviceRepo - Insert - r.Pool.QueryRow: %w", err)
+		return "", ErrDeviceDatabase.Wrap("Insert", "r.Pool.QueryRow", err)
 	}
 
 	return version, nil

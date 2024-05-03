@@ -8,7 +8,7 @@ type Profile struct {
 	GenerateRandomPassword     bool                 `json:"generateRandomPassword,omitempty" example:"true"`
 	CIRAConfigName             *string              `json:"ciraConfigName,omitempty" example:"My CIRA Config"`
 	Activation                 string               `json:"activation" binding:"required,oneof=ccmactivate acmactivate" example:"activate"`
-	MEBXPassword               string               `json:"mebxPassword,omitempty" binding:"required_without=GenerateRandomMEBxPassword" example:"my_password"`
+	MEBXPassword               string               `json:"mebxPassword,omitempty" binding:"required_without=GenerateRandomMEBxPassword,len=0|min=8,max=32" example:"my_password"`
 	GenerateRandomMEBxPassword bool                 `json:"generateRandomMEBxPassword,omitempty" example:"true"`
 	CIRAConfigObject           *CIRAConfig          `json:"ciraConfigObject,omitempty"`
 	Tags                       []string             `json:"tags,omitempty" example:"tag1,tag2"`

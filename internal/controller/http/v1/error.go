@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -15,17 +14,32 @@ type response struct {
 }
 
 func errorResponse(c *gin.Context, err error) {
-	if errors.Is(err, consoleerrors.ErrNotFound) {
-		msg := err.Error()
-		c.AbortWithStatusJSON(http.StatusNotFound, response{msg})
-		return
-	} else if _, ok := err.(validator.ValidationErrors); ok {
-		msg := err.Error()
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{msg})
-	} else if errors.Is(err, consoleerrors.ErrNotUnique) {
-		msg := err.Error()
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{msg})
-	} else {
+	switch err.(type) {
+	case validator.ValidationErrors:
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{err.Error()})
+	case consoleerrors.NotFoundError:
+		c.AbortWithStatusJSON(http.StatusNotFound, response{err.Error()})
+	case consoleerrors.NotUniqueError:
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{err.Error()})
+	case consoleerrors.DatabaseError:
+		c.AbortWithStatusJSON(http.StatusInternalServerError, response{err.Error()}) // Update error message to err.Message with either AMT or Database error
+	case consoleerrors.AMTError:
 		c.AbortWithStatusJSON(http.StatusInternalServerError, response{err.Error()})
+
+	// case consoleerrors.ConsoleError:
+	// 	switch origErr := errTyped.OriginalError.(type) {
+	// 	case consoleerrors.NotFoundError:
+	// 		c.AbortWithStatusJSON(http.StatusNotFound, response{origErr.Error()})
+	// 	case consoleerrors.NotUniqueError:
+	// 		c.AbortWithStatusJSON(http.StatusBadRequest, response{origErr.Error()})
+	// 	case consoleerrors.DatabaseError:
+	// 		c.AbortWithStatusJSON(http.StatusInternalServerError, response{origErr.Error()}) // Update error message to origErr.Message with either AMT or Database error
+	// 	case consoleerrors.AMTError:
+	// 		c.AbortWithStatusJSON(http.StatusInternalServerError, response{origErr.Error()})
+	// 	default:
+	// 		c.AbortWithStatusJSON(http.StatusInternalServerError, response{"general error"})
+	// 	}
+	default:
+		c.AbortWithStatusJSON(http.StatusInternalServerError, response{"general error"})
 	}
 }

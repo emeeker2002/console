@@ -3,7 +3,6 @@ package postgresdb
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/jackc/pgx/v5"
 
@@ -24,6 +23,11 @@ func NewCIRARepo(pg *postgres.DB, log logger.Interface) *CIRARepo {
 	return &CIRARepo{pg, log}
 }
 
+var ErrCIRARepo = consoleerrors.CreateConsoleError("CIRARepo")
+var ErrCIRARepoDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("CIRARepo")}
+var ErrCIRARepoNotFound = consoleerrors.NotFoundError{consoleerrors.CreateConsoleError("CIRARepo")}
+var ErrCIRARepoNotUnique = consoleerrors.NotUniqueError{consoleerrors.CreateConsoleError("CIRARepo")}
+
 // GetCount -.
 func (r *CIRARepo) GetCount(ctx context.Context, tenantID string) (int, error) {
 	sqlQuery, _, err := r.Builder.
@@ -32,7 +36,7 @@ func (r *CIRARepo) GetCount(ctx context.Context, tenantID string) (int, error) {
 		Where("tenant_id = ?", tenantID).
 		ToSql()
 	if err != nil {
-		return 0, fmt.Errorf("CIRARepo - GetCount - r.Builder: %w", err)
+		return 0, ErrCIRARepoDatabase.Wrap("GetCount", "r.Builder", err)
 	}
 
 	var count int
@@ -43,7 +47,7 @@ func (r *CIRARepo) GetCount(ctx context.Context, tenantID string) (int, error) {
 			return 0, nil
 		}
 
-		return 0, fmt.Errorf("CIRARepo - GetCount - r.Pool.QueryRow: %w", err)
+		return 0, ErrCIRARepoDatabase.Wrap("GetCount", "r.Pool.QueryRow", err)
 	}
 
 	return count, nil
@@ -77,12 +81,12 @@ func (r *CIRARepo) Get(ctx context.Context, top, skip int, tenantID string) ([]e
 		Offset(uint64(skip)).
 		ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("CIRARepo - Get - r.Builder: %w", err)
+		return nil, ErrCIRARepoDatabase.Wrap("Get", "r.Builder", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("CIRARepo - Get - r.Pool.Query: %w", err)
+		return nil, ErrCIRARepoDatabase.Wrap("Get", "r.Pool.Query", err)
 	}
 
 	defer rows.Close()
@@ -94,7 +98,7 @@ func (r *CIRARepo) Get(ctx context.Context, top, skip int, tenantID string) ([]e
 
 		err = rows.Scan(&p.ConfigName, &p.MPSServerAddress, &p.MpsPort, &p.Username, &p.Password, &p.CommonName, &p.ServerAddressFormat, &p.AuthMethod, &p.MpsRootCertificate, &p.ProxyDetails, &p.TenantID, &p.Version)
 		if err != nil {
-			return nil, fmt.Errorf("CIRARepo - Get - rows.Scan: %w", err)
+			return nil, ErrCIRARepoDatabase.Wrap("Get", "rows.Scan", err)
 		}
 
 		configs = append(configs, p)
@@ -124,12 +128,12 @@ func (r *CIRARepo) GetByName(ctx context.Context, configName, tenantID string) (
 		Where("cira_config_name = ? and tenant_id = ?", configName, tenantID).
 		ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("CIRARepo - GetByName - r.Builder: %w", err)
+		return nil, ErrCIRARepoDatabase.Wrap("GetByName", "r.Builder", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, configName, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("CIRARepo - GetByName - r.Pool.Query: %w", err)
+		return nil, ErrCIRARepoDatabase.Wrap("GetByName", "r.Pool.Query", err)
 	}
 
 	defer rows.Close()
@@ -141,14 +145,14 @@ func (r *CIRARepo) GetByName(ctx context.Context, configName, tenantID string) (
 
 		err = rows.Scan(&p.ConfigName, &p.MPSServerAddress, &p.MpsPort, &p.Username, &p.Password, &p.CommonName, &p.ServerAddressFormat, &p.AuthMethod, &p.MpsRootCertificate, &p.ProxyDetails, &p.TenantID, &p.Version)
 		if err != nil {
-			return p, fmt.Errorf("CIRARepo - GetByName - rows.Scan: %w", err)
+			return p, ErrCIRARepoDatabase.Wrap("GetByName", "rows.Scan", err)
 		}
 
 		configs = append(configs, p)
 	}
 
 	if len(configs) == 0 {
-		return nil, errors.New(postgres.NotFound)
+		return nil, nil
 	}
 
 	return configs[0], nil
@@ -161,12 +165,12 @@ func (r *CIRARepo) Delete(ctx context.Context, configName, tenantID string) (boo
 		Where("cira_config_name = ? AND tenant_id = ?", configName, tenantID).
 		ToSql()
 	if err != nil {
-		return false, fmt.Errorf("CIRARepo - Delete - r.Builder: %w", err)
+		return false, ErrCIRARepoDatabase.Wrap("Delete", "r.Builder", err)
 	}
 
 	res, err := r.Pool.Exec(ctx, sqlQuery, args...)
 	if err != nil {
-		return false, fmt.Errorf("CIRARepo - Delete - r.Pool.Exec: %w", err)
+		return false, ErrCIRARepoDatabase.Wrap("Delete", "r.Pool.Exec", err)
 	}
 
 	return res.RowsAffected() > 0, nil
@@ -188,12 +192,12 @@ func (r *CIRARepo) Update(ctx context.Context, p *entity.CIRAConfig) (bool, erro
 		Where("cira_config_name = ? AND tenant_id = ?", p.ConfigName, p.TenantID).
 		ToSql()
 	if err != nil {
-		return false, fmt.Errorf("CIRARepo - Update - r.Builder: %w", err)
+		return false, ErrCIRARepoDatabase.Wrap("Update", "r.Builder", err)
 	}
 
 	res, err := r.Pool.Exec(ctx, sqlQuery, args...)
 	if err != nil {
-		return false, fmt.Errorf("CIRARepo - Update - r.Pool.Exec: %w", err)
+		return false, ErrCIRARepoDatabase.Wrap("Update", "r.Pool.Exec", err)
 	}
 
 	return res.RowsAffected() > 0, nil
@@ -208,7 +212,7 @@ func (r *CIRARepo) Insert(ctx context.Context, p *entity.CIRAConfig) (string, er
 		Suffix("RETURNING xmin::text").
 		ToSql()
 	if err != nil {
-		return "", fmt.Errorf("CIRARepo - Insert - r.Builder: %w", err)
+		return "", ErrCIRARepoDatabase.Wrap("Insert", "r.Builder", err)
 	}
 
 	var version string
@@ -216,10 +220,10 @@ func (r *CIRARepo) Insert(ctx context.Context, p *entity.CIRAConfig) (string, er
 	err = r.Pool.QueryRow(ctx, sqlQuery, args...).Scan(&version)
 	if err != nil {
 		if postgres.CheckNotUnique(err) {
-			return "", fmt.Errorf("CIRARepo - Insert - r.Pool.QueryRow: %w", consoleerrors.ErrNotUnique)
+			return "", ErrCIRARepoNotUnique.Wrap("Insert", "r.Pool.QueryRow", err)
 		}
 
-		return "", fmt.Errorf("CIRARepo - Insert - r.Pool.QueryRow: %w", err)
+		return "", ErrCIRARepoDatabase.Wrap("Insert", "r.Pool.QueryRow", err)
 	}
 
 	return version, nil

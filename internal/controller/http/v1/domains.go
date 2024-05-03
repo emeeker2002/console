@@ -99,14 +99,8 @@ func (r *domainRoutes) getByName(c *gin.Context) {
 
 	item, err := r.t.GetByName(c.Request.Context(), name, "")
 	if err != nil {
-
-		// if err.Error() == postgres.NotFound {
-		// 	r.l.Error(err, "Domain "+name+" not found")
-		// 	errorResponse(c, http.StatusNotFound, "domain not found")
-		// } else {
 		r.l.Error(err, "http - v1 - getByName")
 		errorResponse(c, err)
-		//}
 
 		return
 	}

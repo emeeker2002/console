@@ -18,8 +18,8 @@ var (
 	errInternalServerErr = errors.New("internal server error")
 	errDB                = errors.New("database error")
 	errNotFound          = errors.New("wirelessconfig not found")
-	errDelete            = fmt.Errorf("WificonfigsUseCase - Delete - s.repo.Delete: wirelessconfig not found")
-	errGetByName         = fmt.Errorf("WificonfigsUseCase - GetByName - s.repo.GetByName: wirelessconfig not found")
+	errDelete            = fmt.Errorf("WificonfigsUseCase - Delete - uc.repo.Delete: wirelessconfig not found")
+	errGetByName         = fmt.Errorf("WificonfigsUseCase - GetByName - uc.repo.GetByName: wirelessconfig not found")
 )
 
 type test struct {

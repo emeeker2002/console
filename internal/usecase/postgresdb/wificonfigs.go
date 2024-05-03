@@ -3,7 +3,6 @@ package postgresdb
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -20,6 +19,9 @@ type WirelessRepo struct {
 	logger.Interface
 }
 
+var ErrWiFiDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("WirelessRepo")}
+var ErrWiFiNotUnique = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("WirelessRepo")}
+
 // New -.
 func NewWirelessRepo(pg *postgres.DB, log logger.Interface) *WirelessRepo {
 	return &WirelessRepo{pg, log}
@@ -33,7 +35,7 @@ func (r *WirelessRepo) CheckProfileExists(ctx context.Context, profileName, tena
 		Where("wireless_profile_name and tenant_id = ?", profileName, tenantID).
 		ToSql()
 	if err != nil {
-		return false, fmt.Errorf("WirelessRepo - CheckProfileExists - r.Builder: %w", err)
+		return false, ErrWiFiDatabase.Wrap("CheckProfileExists", "r.Builder", err)
 	}
 
 	var count int
@@ -44,7 +46,7 @@ func (r *WirelessRepo) CheckProfileExists(ctx context.Context, profileName, tena
 			return false, nil
 		}
 
-		return false, fmt.Errorf("WirelessRepo - CheckProfileExists - r.Pool.QueryRow: %w", err)
+		return false, ErrWiFiDatabase.Wrap("CheckProfileExists", "r.Pool.QueryRow", err)
 	}
 
 	return true, nil
@@ -58,7 +60,7 @@ func (r *WirelessRepo) GetCount(ctx context.Context, tenantID string) (int, erro
 		Where("tenant_id = ?", tenantID).
 		ToSql()
 	if err != nil {
-		return 0, fmt.Errorf("WirelessRepo - GetCount - r.Builder: %w", err)
+		return 0, ErrWiFiDatabase.Wrap("GetCount", "r.Builder", err)
 	}
 
 	var count int
@@ -69,7 +71,7 @@ func (r *WirelessRepo) GetCount(ctx context.Context, tenantID string) (int, erro
 			return 0, nil
 		}
 
-		return 0, fmt.Errorf("WirelessRepo - GetCount - r.Pool.QueryRow: %w", err)
+		return 0, ErrWiFiDatabase.Wrap("GetCount", "r.Pool.QueryRow", err)
 	}
 
 	return count, nil
@@ -101,12 +103,12 @@ func (r *WirelessRepo) Get(ctx context.Context, top, skip int, tenantID string) 
 		Offset(uint64(skip)).
 		ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("WirelessRepo - Get - r.Builder: %w", err)
+		return nil, ErrWiFiDatabase.Wrap("Get", "r.Builder", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("WirelessRepo - Get - r.Pool.Query: %w", err)
+		return nil, ErrWiFiDatabase.Wrap("Get", "r.Pool.Query", err)
 	}
 
 	defer rows.Close()
@@ -118,7 +120,7 @@ func (r *WirelessRepo) Get(ctx context.Context, top, skip int, tenantID string) 
 
 		err = rows.Scan(&p.ProfileName, &p.AuthenticationMethod, &p.EncryptionMethod, &p.SSID, &p.PSKValue, &p.PSKPassphrase, &p.LinkPolicy, &p.TenantID, &p.IEEE8021xProfileName, &p.Version)
 		if err != nil {
-			return nil, fmt.Errorf("WirelessRepo - Get - rows.Scan: %w", err)
+			return nil, ErrWiFiDatabase.Wrap("Get", "rows.Scan", err)
 		}
 
 		wirelessConfigs = append(wirelessConfigs, p)
@@ -145,12 +147,12 @@ func (r *WirelessRepo) GetByName(ctx context.Context, profileName, tenantID stri
 		Where("wireless_profile_name = ? and tenant_id = ?", profileName, tenantID).
 		ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("WirelessRepo - GetByName - r.Builder: %w", err)
+		return nil, ErrWiFiDatabase.Wrap("GetByName", "r.Builder", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, profileName, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("WirelessRepo - GetByName - r.Pool.Query: %w", err)
+		return nil, ErrWiFiDatabase.Wrap("GetByName", "r.Pool.Query", err)
 	}
 
 	defer rows.Close()
@@ -162,14 +164,14 @@ func (r *WirelessRepo) GetByName(ctx context.Context, profileName, tenantID stri
 
 		err = rows.Scan(&p.ProfileName, &p.AuthenticationMethod, &p.EncryptionMethod, &p.SSID, &p.PSKValue, &p.LinkPolicy, &p.TenantID, &p.IEEE8021xProfileName, &p.Version)
 		if err != nil {
-			return p, fmt.Errorf("WirelessRepo - GetByName - rows.Scan: %w", err)
+			return p, ErrWiFiDatabase.Wrap("GetByName", "rows.Scan", err)
 		}
 
 		wirelessConfigs = append(wirelessConfigs, p)
 	}
 
 	if len(wirelessConfigs) == 0 {
-		return nil, errors.New(postgres.NotFound)
+		return nil, nil
 	}
 
 	return wirelessConfigs[0], nil
@@ -182,12 +184,12 @@ func (r *WirelessRepo) Delete(ctx context.Context, profileName, tenantID string)
 		Where("wireless_profile_name = ? AND tenant_id = ?", profileName, tenantID).
 		ToSql()
 	if err != nil {
-		return false, fmt.Errorf("WirelessRepo - Delete - r.Builder: %w", err)
+		return false, ErrWiFiDatabase.Wrap("Delete", "r.Builder", err)
 	}
 
 	res, err := r.Pool.Exec(ctx, sqlQuery, args...)
 	if err != nil {
-		return false, fmt.Errorf("WirelessRepo - Delete - r.Pool.Exec: %w", err)
+		return false, ErrWiFiDatabase.Wrap("Delete", "r.Pool.Exec", err)
 	}
 
 	return res.RowsAffected() > 0, nil
@@ -208,12 +210,12 @@ func (r *WirelessRepo) Update(ctx context.Context, p *entity.WirelessConfig) (bo
 		Suffix("AND xmin::text = ?", p.Version).
 		ToSql()
 	if err != nil {
-		return false, fmt.Errorf("WirelessRepo - Update - r.Builder: %w", err)
+		return false, ErrWiFiDatabase.Wrap("Update", "r.Builder", err)
 	}
 
 	res, err := r.Pool.Exec(ctx, sqlQuery, args...)
 	if err != nil {
-		return false, fmt.Errorf("WirelessRepo - Update - r.Pool.Exec: %w", err)
+		return false, ErrWiFiDatabase.Wrap("Update", "r.Pool.Exec", err)
 	}
 
 	return res.RowsAffected() > 0, nil
@@ -238,7 +240,7 @@ func (r *WirelessRepo) Insert(ctx context.Context, p *entity.WirelessConfig) (st
 		Suffix("RETURNING xmin::text").
 		ToSql()
 	if err != nil {
-		return "", fmt.Errorf("WirelessRepo - Insert - r.Builder: %w", err)
+		return "", ErrWiFiDatabase.Wrap("Insert", "r.Builder", err)
 	}
 
 	var version string
@@ -246,10 +248,10 @@ func (r *WirelessRepo) Insert(ctx context.Context, p *entity.WirelessConfig) (st
 	err = r.Pool.QueryRow(ctx, sqlQuery, args...).Scan(&version)
 	if err != nil {
 		if postgres.CheckNotUnique(err) {
-			return "", fmt.Errorf("WirelessRepo - Insert - r.Pool.QueryRow: %w", consoleerrors.ErrNotUnique)
+			return "", ErrWiFiNotUnique
 		}
 
-		return "", fmt.Errorf("WirelessRepo - Insert - r.Pool.QueryRow: %w", err)
+		return "", ErrWiFiDatabase.Wrap("Insert", "r.Pool.QueryRow", err)
 	}
 
 	return version, nil

@@ -2,7 +2,6 @@ package domains
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
@@ -23,11 +22,15 @@ func New(r Repository, log logger.Interface) *UseCase {
 	}
 }
 
+var ErrDomainsUseCase = consoleerrors.CreateConsoleError("DomainsUseCase")
+var ErrDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("DomainsUseCase")}
+var ErrNotFound = consoleerrors.NotFoundError{consoleerrors.CreateConsoleError("DomainsUseCase")}
+
 // History - getting translate history from store.
 func (uc *UseCase) GetCount(ctx context.Context, tenantID string) (int, error) {
 	count, err := uc.repo.GetCount(ctx, tenantID)
 	if err != nil {
-		return 0, fmt.Errorf("DomainsUseCase - Count - uc.repo.GetCount: %w", err)
+		return 0, ErrDatabase.Wrap("Get", "uc.repo.GetCount", err)
 	}
 
 	return count, nil
@@ -36,7 +39,7 @@ func (uc *UseCase) GetCount(ctx context.Context, tenantID string) (int, error) {
 func (uc *UseCase) Get(ctx context.Context, top, skip int, tenantID string) ([]entity.Domain, error) {
 	data, err := uc.repo.Get(ctx, top, skip, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("DomainsUseCase - Get - uc.repo.Get: %w", err)
+		return nil, ErrDatabase.Wrap("Get", "uc.repo.Get", err)
 	}
 
 	return data, nil
@@ -45,7 +48,11 @@ func (uc *UseCase) Get(ctx context.Context, top, skip int, tenantID string) ([]e
 func (uc *UseCase) GetDomainByDomainSuffix(ctx context.Context, domainSuffix, tenantID string) (*entity.Domain, error) {
 	data, err := uc.repo.GetDomainByDomainSuffix(ctx, domainSuffix, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("DomainsUseCase - GetDomainByDomainSuffix - uc.repo.GetDomainByDomainSuffix: %w", err)
+		return nil, ErrDatabase.Wrap("GetDomainByDomainSuffix", "uc.repo.GetDomainByDomainSuffix", err)
+	}
+
+	if data == nil {
+		return nil, ErrNotFound
 	}
 
 	return data, nil
@@ -54,12 +61,11 @@ func (uc *UseCase) GetDomainByDomainSuffix(ctx context.Context, domainSuffix, te
 func (uc *UseCase) GetByName(ctx context.Context, domainName, tenantID string) (*entity.Domain, error) {
 	data, err := uc.repo.GetByName(ctx, domainName, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("DomainsUseCase - GetByName - uc.repo.GetByName: %w", err)
+		return nil, ErrDatabase.Wrap("GetByName", "uc.repo.GetByName", err)
 	}
 
-	if data.DomainSuffix == "" {
-		return nil, consoleerrors.ErrNotFound
-		//return nil, fmt.Errorf("DomainsUseCase - GetByName - uc.repo.GetByName: %w", consoleerrors.ErrNotFound)
+	if data == nil {
+		return nil, ErrNotFound
 	}
 
 	return data, nil
@@ -68,11 +74,10 @@ func (uc *UseCase) GetByName(ctx context.Context, domainName, tenantID string) (
 func (uc *UseCase) Delete(ctx context.Context, domainName, tenantID string) error {
 	isSuccessful, err := uc.repo.Delete(ctx, domainName, tenantID)
 	if err != nil {
-		return fmt.Errorf("DomainsUseCase - Delete - uc.repo.Delete: %w", err)
+		return ErrDatabase.Wrap("Delete", "uc.repo.Delete", err)
 	}
 	if !isSuccessful {
-		return consoleerrors.ErrNotFound
-		// return fmt.Errorf("DomainsUseCase - Delete - uc.repo.Delete: %w", consoleerrors.ErrNotFound)
+		return ErrDomainsUseCase.Wrap("Delete", "uc.repo.Delete", err)
 	}
 
 	return nil
@@ -81,7 +86,7 @@ func (uc *UseCase) Delete(ctx context.Context, domainName, tenantID string) erro
 func (uc *UseCase) Update(ctx context.Context, d *entity.Domain) (*entity.Domain, error) {
 	_, err := uc.repo.Update(ctx, d)
 	if err != nil {
-		return nil, fmt.Errorf("DomainsUseCase - Update - uc.repo.Update: %w", err)
+		return nil, ErrDatabase.Wrap("Update", "uc.repo.Update", err)
 	}
 
 	updateDomain, err := uc.repo.GetByName(ctx, d.ProfileName, "")
@@ -95,7 +100,7 @@ func (uc *UseCase) Update(ctx context.Context, d *entity.Domain) (*entity.Domain
 func (uc *UseCase) Insert(ctx context.Context, d *entity.Domain) (*entity.Domain, error) {
 	_, err := uc.repo.Insert(ctx, d)
 	if err != nil {
-		return nil, fmt.Errorf("DomainsUseCase - Insert - uc.repo.Insert: %w", err)
+		return nil, ErrDatabase.Wrap("Insert", "uc.repo.Insert", err)
 	}
 
 	newDomain, err := uc.repo.GetByName(ctx, d.ProfileName, "")

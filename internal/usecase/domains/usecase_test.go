@@ -17,7 +17,6 @@ import (
 var (
 	errInternalServerErr = errors.New("internal server error")
 	errDB                = errors.New("database error")
-	errNotFound          = errors.New("domain not found")
 	errGetByName         = fmt.Errorf("DomainsUseCase - GetByName - s.repo.GetByName: domain not found")
 	errDelete            = fmt.Errorf("DomainsUseCase - Delete - s.repo.Delete: domain not found")
 	errDomainSuffix      = fmt.Errorf("DomainsUseCase - GetDomainByDomainSuffix - s.repo.GetDomainByDomainSuffix: domain not found")
@@ -201,10 +200,10 @@ func TestGetDomainByDomainSuffix(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					GetDomainByDomainSuffix(context.Background(), "unknown.com", "tenant-id-456").
-					Return(nil, errNotFound)
+					Return(nil, nil)
 			},
 			res: nil,
-			err: errDomainSuffix,
+			err: domains.ErrNotFound,
 		},
 	}
 
@@ -273,10 +272,10 @@ func TestGetByName(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					GetByName(context.Background(), "unknown-domain", "tenant-id-456").
-					Return((*entity.Domain)(nil), errNotFound)
+					Return(nil, nil)
 			},
 			res: (*entity.Domain)(nil),
-			err: errGetByName,
+			err: domains.ErrNotFound,
 		},
 	}
 
@@ -324,9 +323,9 @@ func TestDelete(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					Delete(context.Background(), "nonexistent-domain", "tenant-id-456").
-					Return(false, errNotFound)
+					Return(false, nil)
 			},
-			err: errDelete,
+			err: domains.ErrNotFound,
 		},
 	}
 

@@ -3,7 +3,6 @@ package postgresdb
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/jackc/pgx/v5"
 
@@ -20,6 +19,9 @@ type ProfileRepo struct {
 	log logger.Interface
 }
 
+var ErrProfileDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("ProfileRepo")}
+var ErrProfileNotUnique = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("ProfileRepo")}
+
 // New -.
 
 func NewProfileRepo(pg *postgres.DB, log logger.Interface) *ProfileRepo {
@@ -35,7 +37,7 @@ func (r *ProfileRepo) GetCount(ctx context.Context, tenantID string) (int, error
 		Where("tenant_id = ?", tenantID).
 		ToSql()
 	if err != nil {
-		return 0, fmt.Errorf("ProfileRepo - GetCount - r.Builder: %w", err)
+		return 0, ErrProfileDatabase.Wrap("GetCount", "r.Builder", err)
 	}
 
 	var count int
@@ -46,7 +48,7 @@ func (r *ProfileRepo) GetCount(ctx context.Context, tenantID string) (int, error
 			return 0, nil
 		}
 
-		return 0, fmt.Errorf("ProfileRepo - GetCount - r.Pool.QueryRow: %w", err)
+		return 0, ErrProfileDatabase.Wrap("GetCount", "r.Pool.QueryRow", err)
 	}
 
 	return count, nil
@@ -88,12 +90,12 @@ func (r *ProfileRepo) Get(ctx context.Context, top, skip int, tenantID string) (
 		Offset(uint64(skip)).
 		ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("ProfileRepo - Get - r.Builder: %w", err)
+		return nil, ErrProfileDatabase.Wrap("Get", "r.Builder", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("ProfileRepo - Get - r.Pool.Query: %w", err)
+		return nil, ErrProfileDatabase.Wrap("Get", "r.Pool.Query", err)
 	}
 
 	defer rows.Close()
@@ -109,7 +111,7 @@ func (r *ProfileRepo) Get(ctx context.Context, top, skip int, tenantID string) (
 			&p.UserConsent, &p.IDEREnabled, &p.KVMEnabled, &p.SOLEnabled, &p.TLSSigningAuthority,
 			&p.IPSyncEnabled, &p.LocalWifiSyncEnabled, &p.Ieee8021xProfileName, &p.Version)
 		if err != nil {
-			return nil, fmt.Errorf("ProfileRepo - Get - rows.Scan: %w", err)
+			return nil, ErrProfileDatabase.Wrap("Get", "rows.Scan", err)
 		}
 
 		profiles = append(profiles, p)
@@ -147,12 +149,12 @@ func (r *ProfileRepo) GetByName(ctx context.Context, profileName, tenantID strin
 		Where("profile_name = ? and tenant_id = ?", profileName, tenantID).
 		ToSql()
 	if err != nil {
-		return nil, fmt.Errorf("ProfileRepo - GetByName - r.Builder: %w", err)
+		return nil, ErrProfileDatabase.Wrap("GetByName", "r.Builder", err)
 	}
 
 	rows, err := r.Pool.Query(ctx, sqlQuery, profileName, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("ProfileRepo - GetByName - r.Pool.Query: %w", err)
+		return nil, ErrProfileDatabase.Wrap("GetByName", "r.Pool.Query", err)
 	}
 
 	defer rows.Close()
@@ -168,14 +170,14 @@ func (r *ProfileRepo) GetByName(ctx context.Context, profileName, tenantID strin
 			&p.UserConsent, &p.IDEREnabled, &p.KVMEnabled, &p.SOLEnabled, &p.TLSSigningAuthority,
 			&p.IPSyncEnabled, &p.LocalWifiSyncEnabled, &p.Ieee8021xProfileName, &p.Version)
 		if err != nil {
-			return p, fmt.Errorf("ProfileRepo - GetByName - rows.Scan: %w", err)
+			return p, ErrProfileDatabase.Wrap("GetByName", "rows.Scan", err)
 		}
 
 		profiles = append(profiles, p)
 	}
 
 	if len(profiles) == 0 {
-		return nil, fmt.Errorf("ProfileRepo - GetByName - Not Found: %w", err)
+		return nil, ErrProfileDatabase.Wrap("GetByName", "Not Found", err)
 	}
 
 	return profiles[0], nil
@@ -189,12 +191,12 @@ func (r *ProfileRepo) Delete(ctx context.Context, profileName, tenantID string) 
 		Where("profile_name = ? AND tenant_id = ?", profileName, tenantID).
 		ToSql()
 	if err != nil {
-		return false, fmt.Errorf("ProfileRepo - Delete - r.Builder: %w", err)
+		return false, ErrProfileDatabase.Wrap("Delete", "r.Builder", err)
 	}
 
 	res, err := r.Pool.Exec(ctx, sqlQuery, args...)
 	if err != nil {
-		return false, fmt.Errorf("ProfileRepo - Delete - r.Pool.Exec: %w", err)
+		return false, ErrProfileDatabase.Wrap("Delete", "r.Pool.Exec", err)
 	}
 
 	return res.RowsAffected() > 0, nil
@@ -226,12 +228,12 @@ func (r *ProfileRepo) Update(ctx context.Context, p *entity.Profile) (bool, erro
 		Suffix("AND xmin::text = ?", p.Version).
 		ToSql()
 	if err != nil {
-		return false, fmt.Errorf("ProfileRepo - Update - r.Builder: %w", err)
+		return false, ErrProfileDatabase.Wrap("Update", "r.Builder", err)
 	}
 
 	res, err := r.Pool.Exec(ctx, sqlQuery, args...)
 	if err != nil {
-		return false, fmt.Errorf("ProfileRepo - Update - r.Pool.Exec: %w", err)
+		return false, ErrProfileDatabase.Wrap("Update", "r.Pool.Exec", err)
 	}
 
 	return res.RowsAffected() > 0, nil
@@ -263,7 +265,7 @@ func (r *ProfileRepo) Insert(ctx context.Context, p *entity.Profile) (string, er
 		Suffix("RETURNING xmin::text").
 		ToSql()
 	if err != nil {
-		return "", fmt.Errorf("ProfileRepo - Insert - r.Builder: %w", err)
+		return "", ErrProfileDatabase.Wrap("Insert", "r.Builder", err)
 	}
 
 	var version string
@@ -271,10 +273,10 @@ func (r *ProfileRepo) Insert(ctx context.Context, p *entity.Profile) (string, er
 	err = r.Pool.QueryRow(ctx, sqlQuery, args...).Scan(&version)
 	if err != nil {
 		if postgres.CheckNotUnique(err) {
-			return "", fmt.Errorf("ProfileRepo - Insert - r.Pool.QueryRow: %w", consoleerrors.ErrNotUnique)
+			return "", ErrProfileNotUnique
 		}
 
-		return "", fmt.Errorf("ProfileRepo - Insert - r.Pool.QueryRow: %w", err)
+		return "", ErrProfileDatabase.Wrap("Insert", "r.Pool.QueryRow", err)
 	}
 
 	return version, nil

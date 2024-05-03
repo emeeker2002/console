@@ -19,7 +19,6 @@ const (
 	_defaultConnTimeout  = time.Second
 
 	UniqueViolation = "23505"
-	NotFound        = "not found"
 )
 
 // DB -.
