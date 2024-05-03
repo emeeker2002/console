@@ -122,13 +122,6 @@ func (r *WirelessConfigRoutes) update(c *gin.Context) {
 		return
 	}
 
-	// if !successfulUpdate {
-	// 	r.l.Error(err, "http - wireless configs - v1 - update")
-	// 	errorResponse(c, err)
-
-	// 	return
-	// }
-
 	c.JSON(http.StatusOK, updatedWirelessConfig)
 }
 

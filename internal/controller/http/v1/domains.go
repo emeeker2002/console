@@ -130,12 +130,6 @@ func (r *domainRoutes) insert(c *gin.Context) {
 		r.l.Error(err, "http - v1 - insert")
 		errorResponse(c, err)
 
-		// if unique, _ := postgres.CheckUnique(err); !unique {
-		// 	errorResponse(c, err)
-		// } else {
-		// 	errorResponse(c, err)
-		// }
-
 		return
 	}
 

@@ -3,7 +3,6 @@ package ciraconfigs_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -18,7 +17,6 @@ import (
 var (
 	errInternalServErr = errors.New("internal server error")
 	errDB              = errors.New("database error")
-	errGetByName       = fmt.Errorf("CIRAConfigsUseCase - GetByName - s.repo.GetByName: ciraconfig not found")
 )
 
 type test struct {

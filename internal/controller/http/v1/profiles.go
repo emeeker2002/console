@@ -100,14 +100,8 @@ func (r *profileRoutes) getByName(c *gin.Context) {
 
 	item, err := r.t.GetByName(c.Request.Context(), name, "")
 	if err != nil {
-
-		// if err.Error() == postgres.NotFound {
-		// 	r.l.Error(err, "Profile "+name+" not found")
-		// 	errorResponse(c, http.StatusNotFound, "profile not found")
-		// } else {
 		r.l.Error(err, "http - v1 - getByName")
 		errorResponse(c, err)
-		//}
 
 		return
 	}
@@ -137,12 +131,6 @@ func (r *profileRoutes) insert(c *gin.Context) {
 	if err != nil {
 		r.l.Error(err, "http - v1 - insert")
 		errorResponse(c, err)
-
-		// if unique, _ := postgres.CheckUnique(err); !unique {
-		// 	errorResponse(c, err)
-		// } else {
-		// 	errorResponse(c, err)
-		// }
 
 		return
 	}
