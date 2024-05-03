@@ -159,12 +159,7 @@ func (r *profileRoutes) update(c *gin.Context) {
 	updatedProfile, err := r.t.Update(c.Request.Context(), &profile)
 	if err != nil {
 		r.l.Error(err, "http - v1 - update")
-
-		// if unique, _ := postgres.CheckUnique(err); !unique {
-		// 	errorResponse(c, err)
-		// } else {
 		errorResponse(c, err)
-		//}
 
 		return
 	}

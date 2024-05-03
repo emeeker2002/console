@@ -156,12 +156,7 @@ func (r *domainRoutes) update(c *gin.Context) {
 	updatedDomain, err := r.t.Update(c.Request.Context(), &domain)
 	if err != nil {
 		r.l.Error(err, "http - v1 - update")
-
-		// if unique, _ := postgres.CheckUnique(err); !unique {
-		// 	errorResponse(c, err)
-		// } else {
 		errorResponse(c, err)
-		//}
 
 		return
 	}

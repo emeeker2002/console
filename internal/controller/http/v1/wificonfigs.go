@@ -72,13 +72,8 @@ func (r *WirelessConfigRoutes) getByName(c *gin.Context) {
 
 	config, err := r.t.GetByName(c.Request.Context(), profileName, "")
 	if err != nil {
-		// if err.Error() == postgres.NotFound {
-		// 	r.l.Error(err, "wireless Config "+profileName+" not found")
-		// 	errorResponse(c, err)
-		// } else {
 		r.l.Error(err, "http - wireless configs - v1 - getByName")
 		errorResponse(c, err)
-		//}
 
 		return
 	}

@@ -72,13 +72,8 @@ func (r *ieee8021xConfigRoutes) getByName(c *gin.Context) {
 
 	config, err := r.t.GetByName(c.Request.Context(), configName, "")
 	if err != nil {
-		// if err.Error() == postgres.NotFound {
-		// 	r.l.Error(err, "IEEE8021x Config "+configName+" not found")
-		// 	errorResponse(c, http.StatusNotFound, "Config not found")
-		// } else {
 		r.l.Error(err, "http - IEEE8021x configs - v1 - getByName")
 		errorResponse(c, err)
-		// }
 
 		return
 	}
@@ -97,12 +92,7 @@ func (r *ieee8021xConfigRoutes) insert(c *gin.Context) {
 	newConfig, err := r.t.Insert(c.Request.Context(), &config)
 	if err != nil {
 		r.l.Error(err, "http - IEEE8021x configs - v1 - insert")
-
-		// if unique, errMsg := postgres.CheckUnique(err); !unique {
-		// 	errorResponse(c, http.StatusBadRequest, errMsg)
-		// } else {
 		errorResponse(c, err)
-		//}
 
 		return
 	}
