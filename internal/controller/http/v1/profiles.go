@@ -28,6 +28,7 @@ func newProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Int
 		h.PATCH("", r.update)
 		h.DELETE(":name", r.delete)
 	}
+
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		err := v.RegisterValidation("storageformat", entity.StorageFormatValidation)
 		if err != nil {

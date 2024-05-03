@@ -22,9 +22,11 @@ func New(r Repository, log logger.Interface) *UseCase {
 	}
 }
 
-var ErrDomainsUseCase = consoleerrors.CreateConsoleError("DomainsUseCase")
-var ErrDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("DomainsUseCase")}
-var ErrNotFound = consoleerrors.NotFoundError{consoleerrors.CreateConsoleError("DomainsUseCase")}
+var (
+	ErrDomainsUseCase = consoleerrors.CreateConsoleError("DomainsUseCase")
+	ErrDatabase       = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("DomainsUseCase")}
+	ErrNotFound       = consoleerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("DomainsUseCase")}
+)
 
 // History - getting translate history from store.
 func (uc *UseCase) GetCount(ctx context.Context, tenantID string) (int, error) {
@@ -76,6 +78,7 @@ func (uc *UseCase) Delete(ctx context.Context, domainName, tenantID string) erro
 	if err != nil {
 		return ErrDatabase.Wrap("Delete", "uc.repo.Delete", err)
 	}
+
 	if !isSuccessful {
 		return ErrDomainsUseCase.Wrap("Delete", "uc.repo.Delete", err)
 	}

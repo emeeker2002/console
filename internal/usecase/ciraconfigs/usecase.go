@@ -14,9 +14,11 @@ type UseCase struct {
 	log  logger.Interface
 }
 
-var ErrDomainsUseCase = consoleerrors.CreateConsoleError("CIRAConfigsUseCase")
-var ErrDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("CIRAConfigsUseCase")}
-var ErrNotFound = consoleerrors.NotFoundError{consoleerrors.CreateConsoleError("CIRAConfigsUseCase")}
+var (
+	ErrDomainsUseCase = consoleerrors.CreateConsoleError("CIRAConfigsUseCase")
+	ErrDatabase       = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("CIRAConfigsUseCase")}
+	ErrNotFound       = consoleerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("CIRAConfigsUseCase")}
+)
 
 // New -.
 func New(r Repository, log logger.Interface) *UseCase {

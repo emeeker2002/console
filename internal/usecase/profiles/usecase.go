@@ -14,9 +14,11 @@ type UseCase struct {
 	log  logger.Interface
 }
 
-var ErrDomainsUseCase = consoleerrors.CreateConsoleError("ProfilesUseCase")
-var ErrDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("ProfilesUseCase")}
-var ErrNotFound = consoleerrors.NotFoundError{consoleerrors.CreateConsoleError("ProfilesUseCase")}
+var (
+	ErrDomainsUseCase = consoleerrors.CreateConsoleError("ProfilesUseCase")
+	ErrDatabase       = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("ProfilesUseCase")}
+	ErrNotFound       = consoleerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("ProfilesUseCase")}
+)
 
 // New -.
 func New(r Repository, log logger.Interface) *UseCase {
@@ -41,6 +43,7 @@ func (uc *UseCase) Get(ctx context.Context, top, skip int, tenantID string) ([]e
 	if err != nil {
 		return nil, ErrDatabase.Wrap("Get", "uc.repo.Get", err)
 	}
+
 	if data == nil {
 		return nil, ErrNotFound
 	}

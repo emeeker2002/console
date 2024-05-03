@@ -18,8 +18,10 @@ type DomainRepo struct {
 	log logger.Interface
 }
 
-var ErrDomainDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("DomainRepo")}
-var ErrDomainNotUnique = consoleerrors.NotUniqueError{consoleerrors.CreateConsoleError("DomainRepo")}
+var (
+	ErrDomainDatabase  = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("DomainRepo")}
+	ErrDomainNotUnique = consoleerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("DomainRepo")}
+)
 
 // New -.
 func NewDomainRepo(pg *postgres.DB, log logger.Interface) *DomainRepo {

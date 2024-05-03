@@ -8,9 +8,11 @@ import (
 	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 )
 
-var ErrDomainsUseCase = consoleerrors.CreateConsoleError("DevicesUseCase")
-var ErrDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("DevicesUseCase")}
-var ErrNotFound = consoleerrors.NotFoundError{consoleerrors.CreateConsoleError("DevicesUseCase")}
+var (
+	ErrDomainsUseCase = consoleerrors.CreateConsoleError("DevicesUseCase")
+	ErrDatabase       = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}
+	ErrNotFound       = consoleerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}
+)
 
 // History - getting translate history from store.
 func (uc *UseCase) GetCount(ctx context.Context, tenantID string) (int, error) {

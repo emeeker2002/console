@@ -18,8 +18,10 @@ type IEEE8021xRepo struct {
 	log logger.Interface
 }
 
-var ErrIEEE8021xDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("IEEE8021xRepo")}
-var ErrIEEE8021xNotUnique = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("IEEE8021xRepo")}
+var (
+	ErrIEEE8021xDatabase  = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("IEEE8021xRepo")}
+	ErrIEEE8021xNotUnique = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("IEEE8021xRepo")}
+)
 
 // New -.
 func NewIEEE8021xRepo(pg *postgres.DB, log logger.Interface) *IEEE8021xRepo {

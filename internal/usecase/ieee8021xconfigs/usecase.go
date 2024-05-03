@@ -14,9 +14,11 @@ type UseCase struct {
 	log  logger.Interface
 }
 
-var ErrDomainsUseCase = consoleerrors.CreateConsoleError("IEEE8021xUseCase")
-var ErrDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("IEEE8021xUseCase")}
-var ErrNotFound = consoleerrors.NotFoundError{consoleerrors.CreateConsoleError("IEEE8021xUseCase")}
+var (
+	ErrDomainsUseCase = consoleerrors.CreateConsoleError("IEEE8021xUseCase")
+	ErrDatabase       = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("IEEE8021xUseCase")}
+	ErrNotFound       = consoleerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("IEEE8021xUseCase")}
+)
 
 // New -.
 func New(r Repository, log logger.Interface) *UseCase {
@@ -72,6 +74,7 @@ func (uc *UseCase) Delete(ctx context.Context, profileName, tenantID string) err
 	if err != nil {
 		return ErrDatabase.Wrap("Delete", "uc.repo.Delete", err)
 	}
+
 	if !isSuccessful {
 		return ErrNotFound
 	}

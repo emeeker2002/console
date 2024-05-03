@@ -19,8 +19,10 @@ type DeviceRepo struct {
 	log logger.Interface
 }
 
-var ErrDeviceDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("DeviceRepo")}
-var ErrDeviceNotUnique = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("DeviceRepo")}
+var (
+	ErrDeviceDatabase  = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("DeviceRepo")}
+	ErrDeviceNotUnique = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("DeviceRepo")}
+)
 
 // New -.
 func NewDeviceRepo(pg *postgres.DB, log logger.Interface) *DeviceRepo {

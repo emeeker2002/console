@@ -19,8 +19,10 @@ type ProfileRepo struct {
 	log logger.Interface
 }
 
-var ErrProfileDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("ProfileRepo")}
-var ErrProfileNotUnique = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("ProfileRepo")}
+var (
+	ErrProfileDatabase  = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("ProfileRepo")}
+	ErrProfileNotUnique = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("ProfileRepo")}
+)
 
 // New -.
 

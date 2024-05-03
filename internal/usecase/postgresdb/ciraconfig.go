@@ -23,10 +23,12 @@ func NewCIRARepo(pg *postgres.DB, log logger.Interface) *CIRARepo {
 	return &CIRARepo{pg, log}
 }
 
-var ErrCIRARepo = consoleerrors.CreateConsoleError("CIRARepo")
-var ErrCIRARepoDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("CIRARepo")}
-var ErrCIRARepoNotFound = consoleerrors.NotFoundError{consoleerrors.CreateConsoleError("CIRARepo")}
-var ErrCIRARepoNotUnique = consoleerrors.NotUniqueError{consoleerrors.CreateConsoleError("CIRARepo")}
+var (
+	ErrCIRARepo          = consoleerrors.CreateConsoleError("CIRARepo")
+	ErrCIRARepoDatabase  = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("CIRARepo")}
+	ErrCIRARepoNotFound  = consoleerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("CIRARepo")}
+	ErrCIRARepoNotUnique = consoleerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("CIRARepo")}
+)
 
 // GetCount -.
 func (r *CIRARepo) GetCount(ctx context.Context, tenantID string) (int, error) {

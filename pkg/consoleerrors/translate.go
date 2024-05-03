@@ -5,19 +5,31 @@ import (
 )
 
 type NotFoundError struct {
-	ConsoleError
+	Console ConsoleError
 }
 
 func (e NotFoundError) Error() string {
 	return "requested resource not found"
 }
 
+func (e NotFoundError) Wrap(call, function string, err error) error {
+	_ = e.Console.Wrap(call, function, err)
+
+	return e
+}
+
 type NotUniqueError struct {
-	ConsoleError
+	Console ConsoleError
 }
 
 func (e NotUniqueError) Error() string {
 	return "unique constraint violation"
+}
+
+func (e NotUniqueError) Wrap(call, function string, err error) error {
+	_ = e.Console.Wrap(call, function, err)
+
+	return e
 }
 
 type DatabaseError struct {
@@ -30,6 +42,7 @@ func (e DatabaseError) Error() string {
 
 func (e DatabaseError) Wrap(call, function string, err error) error {
 	_ = e.Console.Wrap(call, function, err)
+
 	return e
 }
 
@@ -51,11 +64,13 @@ type ConsoleError struct {
 }
 
 func (e ConsoleError) Error() string {
-	return fmt.Sprintf("%s - %s - %s: %w", e.file, e.Function, e.Call, e.OriginalError)
+	return fmt.Sprintf("%s - %s - %s: %s", e.file, e.Function, e.Call, e.OriginalError.Error())
 }
+
 func (e ConsoleError) FriendlyMessage() string {
 	return e.Message
 }
+
 func (e *ConsoleError) Wrap(call, function string, err error) error {
 	e.Call = call
 	e.Function = function
@@ -64,10 +79,12 @@ func (e *ConsoleError) Wrap(call, function string, err error) error {
 	if err != nil {
 		e.InnerTrace = err.Error()
 	}
+
 	return e
 }
+
 func CreateConsoleError(file string) ConsoleError {
-	var message = ""
+	message := ""
 
 	return ConsoleError{
 		file:    file,

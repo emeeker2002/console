@@ -19,8 +19,10 @@ type WirelessRepo struct {
 	logger.Interface
 }
 
-var ErrWiFiDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("WirelessRepo")}
-var ErrWiFiNotUnique = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("WirelessRepo")}
+var (
+	ErrWiFiDatabase  = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("WirelessRepo")}
+	ErrWiFiNotUnique = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("WirelessRepo")}
+)
 
 // New -.
 func NewWirelessRepo(pg *postgres.DB, log logger.Interface) *WirelessRepo {

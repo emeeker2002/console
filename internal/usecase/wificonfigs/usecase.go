@@ -22,10 +22,12 @@ func New(r Repository, log logger.Interface) *UseCase {
 	}
 }
 
-var ErrCountNotUnique = consoleerrors.NotUniqueError{consoleerrors.CreateConsoleError("WifiConfigs")}
-var ErrDomainsUseCase = consoleerrors.CreateConsoleError("WificonfigsUseCase")
-var ErrDatabase = consoleerrors.DatabaseError{consoleerrors.CreateConsoleError("WificonfigsUseCase")}
-var ErrNotFound = consoleerrors.NotFoundError{consoleerrors.CreateConsoleError("WificonfigsUseCase")}
+var (
+	ErrCountNotUnique = consoleerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("WifiConfigs")}
+	ErrDomainsUseCase = consoleerrors.CreateConsoleError("WificonfigsUseCase")
+	ErrDatabase       = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("WificonfigsUseCase")}
+	ErrNotFound       = consoleerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("WificonfigsUseCase")}
+)
 
 // History - getting translate history from store.
 func (uc *UseCase) CheckProfileExists(ctx context.Context, profileName, tenantID string) (bool, error) {

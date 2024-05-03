@@ -3,7 +3,6 @@ package domains_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,9 +16,6 @@ import (
 var (
 	errInternalServerErr = errors.New("internal server error")
 	errDB                = errors.New("database error")
-	errGetByName         = fmt.Errorf("DomainsUseCase - GetByName - s.repo.GetByName: domain not found")
-	errDelete            = fmt.Errorf("DomainsUseCase - Delete - s.repo.Delete: domain not found")
-	errDomainSuffix      = fmt.Errorf("DomainsUseCase - GetDomainByDomainSuffix - s.repo.GetDomainByDomainSuffix: domain not found")
 )
 
 type test struct {
