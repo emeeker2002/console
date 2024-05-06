@@ -182,7 +182,12 @@ func (r *DomainRepo) Delete(ctx context.Context, domainName, tenantID string) (b
 		return false, ErrDomainDatabase.Wrap("Delete", "r.Pool.Exec", err)
 	}
 
-	return res.RowsAffected() > 0, nil
+	result, err := res.RowsAffected()
+	if err != nil {
+		return false, ErrDomainDatabase.Wrap("Delete", "res.RowsAffected", err)
+	}
+
+	return result > 0, nil
 }
 
 // Update -.
@@ -206,7 +211,12 @@ func (r *DomainRepo) Update(ctx context.Context, d *entity.Domain) (bool, error)
 		return false, ErrDomainDatabase.Wrap("Update", "r.Pool.Exec", err)
 	}
 
-	return res.RowsAffected() > 0, nil
+	result, err := res.RowsAffected()
+	if err != nil {
+		return false, ErrDomainDatabase.Wrap("Update", "res.RowsAffected", err)
+	}
+
+	return result > 0, nil
 }
 
 // Insert -.

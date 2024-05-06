@@ -78,9 +78,9 @@ func (uc *UseCase) GetByName(ctx context.Context, profileName, tenantID string) 
 		return nil, ErrNotFound
 	}
 
-	d1 := uc.entityToDTO(&data)
+	d1 := uc.entityToDTO(data)
 
-	return *d1, nil
+	return d1, nil
 }
 
 func (uc *UseCase) Delete(ctx context.Context, profileName, tenantID string) error {
@@ -99,7 +99,7 @@ func (uc *UseCase) Delete(ctx context.Context, profileName, tenantID string) err
 func (uc *UseCase) Update(ctx context.Context, d *dto.WirelessConfig) (*dto.WirelessConfig, error) {
 	d1 := uc.dtoToEntity(d)
 
-	_, err := uc.repo.Update(ctx, d)
+	_, err := uc.repo.Update(ctx, d1)
 	if err != nil {
 		return nil, ErrDatabase.Wrap("Update", "uc.repo.Update", err)
 	}
@@ -109,7 +109,9 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.WirelessConfig) (*dto.Wire
 		return nil, err
 	}
 
-	return updatedConfig, nil
+	d2 := uc.entityToDTO(updatedConfig)
+
+	return d2, nil
 }
 
 func (uc *UseCase) Insert(ctx context.Context, d *dto.WirelessConfig) (*dto.WirelessConfig, error) {
@@ -125,7 +127,9 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.WirelessConfig) (*dto.Wire
 		return nil, err
 	}
 
-	return insertedConfig, nil
+	d2 := uc.entityToDTO(insertedConfig)
+
+	return d2, nil
 }
 
 // convert dto.WirelessConfig to entity.WirelessConfig

@@ -193,7 +193,12 @@ func (r *WirelessRepo) Delete(ctx context.Context, profileName, tenantID string)
 		return false, ErrWiFiDatabase.Wrap("Delete", "r.Pool.Exec", err)
 	}
 
-	return res.RowsAffected() > 0, nil
+	result, err := res.RowsAffected()
+	if err != nil {
+		return false, ErrDomainDatabase.Wrap("Delete", "res.RowsAffected", err)
+	}
+
+	return result > 0, nil
 }
 
 // Update -.
@@ -219,7 +224,12 @@ func (r *WirelessRepo) Update(ctx context.Context, p *entity.WirelessConfig) (bo
 		return false, ErrWiFiDatabase.Wrap("Update", "r.Pool.Exec", err)
 	}
 
-	return res.RowsAffected() > 0, nil
+	result, err := res.RowsAffected()
+	if err != nil {
+		return false, ErrDomainDatabase.Wrap("Update", "res.RowsAffected", err)
+	}
+
+	return result > 0, nil
 }
 
 // Insert -.
