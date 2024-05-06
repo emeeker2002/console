@@ -2,7 +2,6 @@ package wificonfigs_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,13 +9,11 @@ import (
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/wificonfigs"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 )
 
-var (
-	errInternalServerErr = errors.New("internal server error")
-	errDB                = errors.New("database error")
-)
+var errTest = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("Test Error")}
 
 type test struct {
 	name        string
@@ -62,7 +59,7 @@ func TestCheckProfileExists(t *testing.T) {
 			profileName: "nonexistent-wirelessconfig",
 			tenantID:    "tenant-id-456",
 			mock: func(repo *MockRepository, args ...interface{}) {
-				repo.EXPECT().CheckProfileExists(context.Background(), args[0], args[1]).Return(false, errInternalServerErr)
+				repo.EXPECT().CheckProfileExists(context.Background(), args[0], args[1]).Return(false, errTest)
 			},
 			res: false,
 			err: wificonfigs.ErrDatabase,
@@ -161,10 +158,10 @@ func TestGet(t *testing.T) {
 			mock: func(repo *MockRepository, args ...interface{}) {
 				repo.EXPECT().
 					Get(context.Background(), args[0], args[1], args[2]).
-					Return(nil, errDB)
+					Return(nil, errTest)
 			},
 			res: []entity.WirelessConfig(nil),
-			err: errDB,
+			err: errTest,
 		},
 		{
 			name:     "zero results",
@@ -324,7 +321,7 @@ func TestUpdate(t *testing.T) {
 	tests := []test{
 		{
 			name: "successful update",
-			mock: func(repo *MockRepository, args ...interface{}) {
+			mock: func(repo *MockRepository, _ ...interface{}) {
 				repo.EXPECT().
 					Update(context.Background(), wirelessConfig).
 					Return(true, nil)
@@ -337,10 +334,10 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name: "update fails - database error",
-			mock: func(repo *MockRepository, args ...interface{}) {
+			mock: func(repo *MockRepository, _ ...interface{}) {
 				repo.EXPECT().
 					Update(context.Background(), wirelessConfig).
-					Return(false, errInternalServerErr)
+					Return(false, errTest)
 			},
 			res: (*entity.WirelessConfig)(nil),
 			err: wificonfigs.ErrDatabase,
@@ -376,7 +373,7 @@ func TestInsert(t *testing.T) {
 	tests := []test{
 		{
 			name: "successful insertion",
-			mock: func(repo *MockRepository, args ...interface{}) {
+			mock: func(repo *MockRepository, _ ...interface{}) {
 				repo.EXPECT().
 					Insert(context.Background(), wirelessConfig).
 					Return("unique-wirelessconfig-id", nil)
@@ -389,10 +386,10 @@ func TestInsert(t *testing.T) {
 		},
 		{
 			name: "insertion fails - database error",
-			mock: func(repo *MockRepository, args ...interface{}) {
+			mock: func(repo *MockRepository, _ ...interface{}) {
 				repo.EXPECT().
 					Insert(context.Background(), wirelessConfig).
-					Return("", errInternalServerErr)
+					Return("", errTest)
 			},
 			res: (*entity.WirelessConfig)(nil),
 			err: wificonfigs.ErrDatabase,

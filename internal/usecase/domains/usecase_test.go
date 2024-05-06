@@ -2,7 +2,6 @@ package domains_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,13 +10,11 @@ import (
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/domains"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 )
 
-var (
-	errInternalServerErr = errors.New("internal server error")
-	errDB                = errors.New("database error")
-)
+var errTest = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("Test Error")}
 
 type test struct {
 	name         string
@@ -60,7 +57,7 @@ func TestGetCount(t *testing.T) {
 		{
 			name: "result with error",
 			mock: func(repo *MockRepository) {
-				repo.EXPECT().GetCount(context.Background(), "").Return(0, errInternalServerErr)
+				repo.EXPECT().GetCount(context.Background(), "").Return(0, errTest)
 			},
 			res: 0,
 			err: devices.ErrDatabase,
@@ -121,10 +118,10 @@ func TestGet(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					Get(context.Background(), 5, 0, "tenant-id-456").
-					Return(nil, errDB)
+					Return(nil, errTest)
 			},
 			res: []entity.Domain(nil),
-			err: errDB,
+			err: errTest,
 		},
 		{
 			name:     "zero results",
@@ -375,7 +372,7 @@ func TestUpdate(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					Update(context.Background(), domain).
-					Return(false, errInternalServerErr)
+					Return(false, errTest)
 			},
 			res: (*entity.Domain)(nil),
 			err: domains.ErrDatabase,
@@ -431,7 +428,7 @@ func TestInsert(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					Insert(context.Background(), domain).
-					Return("", errInternalServerErr)
+					Return("", errTest)
 			},
 			res: (*entity.Domain)(nil),
 			err: domains.ErrDatabase,

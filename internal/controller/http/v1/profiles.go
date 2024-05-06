@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/profiles"
@@ -25,6 +27,13 @@ func newProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Int
 		h.POST("", r.insert)
 		h.PATCH("", r.update)
 		h.DELETE(":name", r.delete)
+	}
+
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		err := v.RegisterValidation("storageformat", entity.StorageFormatValidation)
+		if err != nil {
+			l.Error(err, "error registering validation")
+		}
 	}
 }
 

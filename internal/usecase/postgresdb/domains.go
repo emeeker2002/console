@@ -3,6 +3,7 @@ package postgresdb
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
 
@@ -136,14 +137,15 @@ func (r *DomainRepo) GetDomainByDomainSuffix(ctx context.Context, domainSuffix, 
 // GetByName -.
 func (r *DomainRepo) GetByName(ctx context.Context, domainName, tenantID string) (*entity.Domain, error) {
 	sqlQuery, args, err := r.Builder.
-		Select(
-			"name",
-			"domain_suffix",
-			//"provisioning_cert",
-			"provisioning_cert_storage_format",
-			//"provisioning_cert_key",
-			"tenant_id",
-			"CAST(xmin as text) as xmin").
+		Select(`
+        name,
+				domain_suffix,
+				provisioning_cert,
+				provisioning_cert_storage_format,
+				provisioning_cert_key,
+				tenant_id,
+        CAST(xmin as text) as xmin
+    `).
 		From("domains").
 		Where("name = ? AND tenant_id = ?", domainName, tenantID).
 		ToSql()
@@ -184,7 +186,7 @@ func (r *DomainRepo) Delete(ctx context.Context, domainName, tenantID string) (b
 
 	result, err := res.RowsAffected()
 	if err != nil {
-		return false, ErrDomainDatabase.Wrap("Delete", "res.RowsAffected", err)
+		return false, fmt.Errorf("DomainRepo - Delete - r.Pool.Exec: %w", err)
 	}
 
 	return result > 0, nil
@@ -213,7 +215,7 @@ func (r *DomainRepo) Update(ctx context.Context, d *entity.Domain) (bool, error)
 
 	result, err := res.RowsAffected()
 	if err != nil {
-		return false, ErrDomainDatabase.Wrap("Update", "res.RowsAffected", err)
+		return false, fmt.Errorf("DomainRepo - Update - r.Pool.Exec: %w", err)
 	}
 
 	return result > 0, nil

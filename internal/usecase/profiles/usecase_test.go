@@ -2,8 +2,6 @@ package profiles_test
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,16 +9,11 @@ import (
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/profiles"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 )
 
-var (
-	errInternalServerErr = errors.New("internal server error")
-	errNotFound          = errors.New("profile not found")
-	errGetByName         = fmt.Errorf("ProfilesUseCase - GetByName - s.repo.GetByName: profile not found")
-	errDelete            = fmt.Errorf("ProfilesUseCase - Delete - s.repo.Delete: profile not found")
-	errDB                = errors.New("database error")
-)
+var errTest = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("Test Error")}
 
 type test struct {
 	name        string
@@ -62,7 +55,7 @@ func TestGetCount(t *testing.T) {
 		{
 			name: "result with error",
 			mock: func(repo *MockRepository) {
-				repo.EXPECT().GetCount(context.Background(), "").Return(0, errInternalServerErr)
+				repo.EXPECT().GetCount(context.Background(), "").Return(0, errTest)
 			},
 			res: 0,
 			err: profiles.ErrDatabase,
@@ -122,10 +115,10 @@ func TestGet(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					Get(context.Background(), 5, 0, "tenant-id-456").
-					Return(nil, errDB)
+					Return(nil, profiles.ErrDatabase)
 			},
 			res: []entity.Profile(nil),
-			err: errDB,
+			err: profiles.ErrDatabase,
 		},
 		{
 			name:     "zero results",
@@ -301,7 +294,7 @@ func TestUpdate(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					Update(context.Background(), profile).
-					Return(false, errInternalServerErr)
+					Return(false, errTest)
 			},
 			res: (*entity.Profile)(nil),
 			err: profiles.ErrDatabase,
@@ -352,7 +345,7 @@ func TestInsert(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					Insert(context.Background(), profile).
-					Return("", errInternalServerErr)
+					Return("", errTest)
 			},
 			res: (*entity.Profile)(nil),
 			err: profiles.ErrDatabase,
