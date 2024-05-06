@@ -198,7 +198,7 @@ func TestGetByName(t *testing.T) {
 					GetByName(context.Background(), "unknown-ciraconfig", "tenant-id-456").
 					Return(nil, nil)
 			},
-			res: nil,
+			res: (*entity.CIRAConfig)(nil),
 			err: ciraconfigs.ErrNotFound,
 		},
 	}
@@ -213,6 +213,8 @@ func TestGetByName(t *testing.T) {
 			tc.mock(repo)
 
 			res, err := useCase.GetByName(context.Background(), tc.input.ConfigName, tc.input.TenantID)
+
+			require.Equal(t, tc.res, res)
 
 			if tc.err != nil {
 				require.Contains(t, err.Error(), tc.err.Error())
@@ -369,9 +371,9 @@ func TestInsert(t *testing.T) {
 
 			tc.mock(repo)
 
-			id, err := useCase.Insert(context.Background(), ciraconfig)
+			config, err := useCase.Insert(context.Background(), ciraconfig)
 
-			require.Equal(t, tc.res, id)
+			require.Equal(t, tc.res, config)
 
 			if tc.err != nil {
 				require.Error(t, err)

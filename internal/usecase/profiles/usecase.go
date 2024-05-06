@@ -57,6 +57,10 @@ func (uc *UseCase) GetByName(ctx context.Context, profileName, tenantID string) 
 		return nil, ErrDatabase.Wrap("GetByName", "uc.repo.GetByName", err)
 	}
 
+	if data == nil {
+		return nil, ErrNotFound
+	}
+
 	return data, nil
 }
 
@@ -79,7 +83,7 @@ func (uc *UseCase) Update(ctx context.Context, d *entity.Profile) (*entity.Profi
 		return nil, ErrDatabase.Wrap("Update", "uc.repo.Update", err)
 	}
 
-	updatedProfile, err := uc.repo.GetByName(ctx, d.ProfileName, "")
+	updatedProfile, err := uc.repo.GetByName(ctx, d.ProfileName, d.TenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +97,7 @@ func (uc *UseCase) Insert(ctx context.Context, d *entity.Profile) (*entity.Profi
 		return nil, ErrDatabase.Wrap("Insert", "uc.repo.Insert", err)
 	}
 
-	newProfile, err := uc.repo.GetByName(ctx, d.ProfileName, "")
+	newProfile, err := uc.repo.GetByName(ctx, d.ProfileName, d.TenantID)
 	if err != nil {
 		return nil, err
 	}

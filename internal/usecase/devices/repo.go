@@ -83,7 +83,7 @@ func (uc *UseCase) Update(ctx context.Context, d *entity.Device) (*entity.Device
 		return nil, ErrDatabase.Wrap("Update", "uc.repo.Update", err)
 	}
 
-	updateDevice, err := uc.repo.GetByID(ctx, d.GUID, "")
+	updateDevice, err := uc.repo.GetByID(ctx, d.GUID, d.TenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (uc *UseCase) Insert(ctx context.Context, d *entity.Device) (*entity.Device
 		return nil, ErrDatabase.Wrap("Insert", "uc.repo.Insert", err)
 	}
 
-	newDevice, err := uc.repo.GetByID(ctx, d.GUID, "")
+	newDevice, err := uc.repo.GetByID(ctx, d.GUID, d.TenantID)
 	if err != nil {
 		return nil, err
 	}

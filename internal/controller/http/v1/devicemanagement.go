@@ -343,7 +343,7 @@ func (r *deviceManagementRoutes) getNetworkSettings(c *gin.Context) {
 	network, err := r.d.GetNetworkSettings(c, guid)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getNetworkSettings")
-		errorResponse(c, http.StatusInternalServerError, "problems")
+		errorResponse(c, err)
 
 		return
 	}

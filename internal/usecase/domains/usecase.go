@@ -80,7 +80,7 @@ func (uc *UseCase) Delete(ctx context.Context, domainName, tenantID string) erro
 	}
 
 	if !isSuccessful {
-		return ErrDomainsUseCase.Wrap("Delete", "uc.repo.Delete", err)
+		return ErrNotFound
 	}
 
 	return nil
@@ -92,7 +92,7 @@ func (uc *UseCase) Update(ctx context.Context, d *entity.Domain) (*entity.Domain
 		return nil, ErrDatabase.Wrap("Update", "uc.repo.Update", err)
 	}
 
-	updateDomain, err := uc.repo.GetByName(ctx, d.ProfileName, "")
+	updateDomain, err := uc.repo.GetByName(ctx, d.ProfileName, d.TenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +106,7 @@ func (uc *UseCase) Insert(ctx context.Context, d *entity.Domain) (*entity.Domain
 		return nil, ErrDatabase.Wrap("Insert", "uc.repo.Insert", err)
 	}
 
-	newDomain, err := uc.repo.GetByName(ctx, d.ProfileName, "")
+	newDomain, err := uc.repo.GetByName(ctx, d.ProfileName, d.TenantID)
 	if err != nil {
 		return nil, err
 	}

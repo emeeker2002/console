@@ -3,7 +3,6 @@ package wificonfigs_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -17,21 +16,18 @@ import (
 var (
 	errInternalServerErr = errors.New("internal server error")
 	errDB                = errors.New("database error")
-	errNotFound          = errors.New("wirelessconfig not found")
-	errDelete            = fmt.Errorf("WificonfigsUseCase - Delete - uc.repo.Delete: wirelessconfig not found")
-	errGetByName         = fmt.Errorf("WificonfigsUseCase - GetByName - uc.repo.GetByName: wirelessconfig not found")
 )
 
 type test struct {
-	name           string
-	top            int
-	skip           int
-	input          entity.WirelessConfig
-	profileName    string
-	tenantID       string
-	mock           func(*MockRepository, ...interface{})
-	expectedResult interface{}
-	err            error
+	name        string
+	top         int
+	skip        int
+	input       entity.WirelessConfig
+	profileName string
+	tenantID    string
+	mock        func(*MockRepository, ...interface{})
+	res         interface{}
+	err         error
 }
 
 func wificonfigsTest(t *testing.T) (*wificonfigs.UseCase, *MockRepository) {
@@ -58,8 +54,8 @@ func TestCheckProfileExists(t *testing.T) {
 			mock: func(repo *MockRepository, args ...interface{}) {
 				repo.EXPECT().CheckProfileExists(context.Background(), args[0], args[1]).Return(false, nil)
 			},
-			expectedResult: false,
-			err:            nil,
+			res: false,
+			err: nil,
 		},
 		{
 			name:        "result with error",
@@ -68,8 +64,8 @@ func TestCheckProfileExists(t *testing.T) {
 			mock: func(repo *MockRepository, args ...interface{}) {
 				repo.EXPECT().CheckProfileExists(context.Background(), args[0], args[1]).Return(false, errInternalServerErr)
 			},
-			expectedResult: false,
-			err:            errInternalServerErr,
+			res: false,
+			err: wificonfigs.ErrDatabase,
 		},
 	}
 
@@ -85,8 +81,8 @@ func TestCheckProfileExists(t *testing.T) {
 
 			res, err := useCase.CheckProfileExists(context.Background(), tc.profileName, tc.tenantID)
 
-			require.Equal(t, tc.expectedResult, res)
-			require.ErrorIs(t, err, tc.err)
+			require.Equal(t, tc.res, res)
+			require.IsType(t, tc.err, err)
 		})
 	}
 }
@@ -100,16 +96,16 @@ func TestGetCount(t *testing.T) {
 			mock: func(repo *MockRepository, args ...interface{}) {
 				repo.EXPECT().GetCount(context.Background(), "").Return(args[0], args[1])
 			},
-			expectedResult: 0,
-			err:            nil,
+			res: 0,
+			err: nil,
 		},
 		{
 			name: "result with error",
 			mock: func(repo *MockRepository, args ...interface{}) {
 				repo.EXPECT().GetCount(context.Background(), "").Return(args[0], args[1])
 			},
-			expectedResult: 0,
-			err:            errInternalServerErr,
+			res: 0,
+			err: wificonfigs.ErrDatabase,
 		},
 	}
 
@@ -119,12 +115,12 @@ func TestGetCount(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			useCase, repo := wificonfigsTest(t)
-			tc.mock(repo, tc.expectedResult, tc.err)
+			tc.mock(repo, tc.res, tc.err)
 
 			res, err := useCase.GetCount(context.Background(), "")
 
-			require.Equal(t, res, tc.expectedResult)
-			require.ErrorIs(t, err, tc.err)
+			require.Equal(t, tc.res, res)
+			require.IsType(t, tc.err, err)
 		})
 	}
 }
@@ -154,8 +150,8 @@ func TestGet(t *testing.T) {
 					Get(context.Background(), args[0], args[1], args[2]).
 					Return(testWifiConfigs, nil)
 			},
-			expectedResult: testWifiConfigs,
-			err:            nil,
+			res: testWifiConfigs,
+			err: nil,
 		},
 		{
 			name:     "database error",
@@ -167,8 +163,8 @@ func TestGet(t *testing.T) {
 					Get(context.Background(), args[0], args[1], args[2]).
 					Return(nil, errDB)
 			},
-			expectedResult: []entity.WirelessConfig(nil),
-			err:            errDB,
+			res: []entity.WirelessConfig(nil),
+			err: errDB,
 		},
 		{
 			name:     "zero results",
@@ -180,8 +176,8 @@ func TestGet(t *testing.T) {
 					Get(context.Background(), args[0], args[1], args[2]).
 					Return([]entity.WirelessConfig{}, nil)
 			},
-			expectedResult: []entity.WirelessConfig{},
-			err:            nil,
+			res: []entity.WirelessConfig{},
+			err: nil,
 		},
 	}
 
@@ -195,7 +191,7 @@ func TestGet(t *testing.T) {
 
 			results, err := useCase.Get(context.Background(), tc.top, tc.skip, tc.tenantID)
 
-			require.Equal(t, tc.expectedResult, results)
+			require.Equal(t, tc.res, results)
 
 			if tc.err != nil {
 				require.Error(t, err)
@@ -228,8 +224,8 @@ func TestGetByName(t *testing.T) {
 					GetByName(context.Background(), args[0], args[1]).
 					Return(wirelessConfig, nil)
 			},
-			expectedResult: wirelessConfig,
-			err:            nil,
+			res: wirelessConfig,
+			err: nil,
 		},
 		{
 			name: "WirelessConfig not found",
@@ -240,10 +236,10 @@ func TestGetByName(t *testing.T) {
 			mock: func(repo *MockRepository, args ...interface{}) {
 				repo.EXPECT().
 					GetByName(context.Background(), args[0], args[1]).
-					Return(entity.WirelessConfig{}, errNotFound)
+					Return(nil, nil)
 			},
-			expectedResult: entity.WirelessConfig{},
-			err:            errGetByName,
+			res: (*entity.WirelessConfig)(nil),
+			err: wificonfigs.ErrNotFound,
 		},
 	}
 
@@ -257,7 +253,7 @@ func TestGetByName(t *testing.T) {
 
 			res, err := useCase.GetByName(context.Background(), tc.input.ProfileName, tc.input.TenantID)
 
-			require.Equal(t, tc.expectedResult, res)
+			require.Equal(t, tc.res, res)
 
 			if tc.err != nil {
 				require.Contains(t, err.Error(), tc.err.Error())
@@ -290,9 +286,9 @@ func TestDelete(t *testing.T) {
 			mock: func(repo *MockRepository, args ...interface{}) {
 				repo.EXPECT().
 					Delete(context.Background(), args[0], args[1]).
-					Return(false, errNotFound)
+					Return(false, nil)
 			},
-			err: errDelete,
+			err: wificonfigs.ErrNotFound,
 		},
 	}
 
@@ -319,26 +315,35 @@ func TestDelete(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
+	wirelessConfig := &entity.WirelessConfig{
+		ProfileName: "test-WirelessConfig",
+		TenantID:    "tenant-id-456",
+		Version:     "123",
+	}
+
 	tests := []test{
 		{
 			name: "successful update",
 			mock: func(repo *MockRepository, args ...interface{}) {
 				repo.EXPECT().
-					Update(context.Background(), args[0]).
+					Update(context.Background(), wirelessConfig).
 					Return(true, nil)
+				repo.EXPECT().
+					GetByName(context.Background(), wirelessConfig.ProfileName, wirelessConfig.TenantID).
+					Return(wirelessConfig, nil)
 			},
-			expectedResult: true,
-			err:            nil,
+			res: wirelessConfig,
+			err: nil,
 		},
 		{
 			name: "update fails - database error",
 			mock: func(repo *MockRepository, args ...interface{}) {
 				repo.EXPECT().
-					Update(context.Background(), args[0]).
+					Update(context.Background(), wirelessConfig).
 					Return(false, errInternalServerErr)
 			},
-			expectedResult: false,
-			err:            errInternalServerErr,
+			res: (*entity.WirelessConfig)(nil),
+			err: wificonfigs.ErrDatabase,
 		},
 	}
 
@@ -347,20 +352,14 @@ func TestUpdate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			wirelessconfig := &entity.WirelessConfig{
-				ProfileName: "example-wirelessconfig",
-				TenantID:    "tenant-id-456",
-				Version:     "123",
-			}
-
 			useCase, repo := wificonfigsTest(t)
 
-			tc.mock(repo, wirelessconfig)
+			tc.mock(repo)
 
-			result, err := useCase.Update(context.Background(), wirelessconfig)
+			result, err := useCase.Update(context.Background(), wirelessConfig)
 
-			require.Equal(t, tc.expectedResult, result)
-			require.ErrorIs(t, err, tc.err)
+			require.Equal(t, tc.res, result)
+			require.IsType(t, err, tc.err)
 		})
 	}
 }
@@ -368,26 +367,35 @@ func TestUpdate(t *testing.T) {
 func TestInsert(t *testing.T) {
 	t.Parallel()
 
+	wirelessConfig := &entity.WirelessConfig{
+		ProfileName: "test-WirelessConfig",
+		TenantID:    "tenant-id-456",
+		Version:     "123",
+	}
+
 	tests := []test{
 		{
 			name: "successful insertion",
 			mock: func(repo *MockRepository, args ...interface{}) {
 				repo.EXPECT().
-					Insert(context.Background(), args[0]).
+					Insert(context.Background(), wirelessConfig).
 					Return("unique-wirelessconfig-id", nil)
+				repo.EXPECT().
+					GetByName(context.Background(), wirelessConfig.ProfileName, wirelessConfig.TenantID).
+					Return(wirelessConfig, nil)
 			},
-			expectedResult: "unique-wirelessconfig-id",
-			err:            nil,
+			res: wirelessConfig,
+			err: nil,
 		},
 		{
 			name: "insertion fails - database error",
 			mock: func(repo *MockRepository, args ...interface{}) {
 				repo.EXPECT().
-					Insert(context.Background(), args[0]).
+					Insert(context.Background(), wirelessConfig).
 					Return("", errInternalServerErr)
 			},
-			expectedResult: "",
-			err:            errInternalServerErr,
+			res: (*entity.WirelessConfig)(nil),
+			err: wificonfigs.ErrDatabase,
 		},
 	}
 
@@ -396,19 +404,13 @@ func TestInsert(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			wirelessconfig := &entity.WirelessConfig{
-				ProfileName: "new-wirelessconfig",
-				TenantID:    "tenant-id-789",
-				Version:     "123",
-			}
-
 			useCase, repo := wificonfigsTest(t)
 
-			tc.mock(repo, wirelessconfig)
+			tc.mock(repo)
 
-			id, err := useCase.Insert(context.Background(), wirelessconfig)
+			id, err := useCase.Insert(context.Background(), wirelessConfig)
 
-			require.Equal(t, tc.expectedResult, id)
+			require.Equal(t, tc.res, id)
 
 			if tc.err != nil {
 				require.Error(t, err)

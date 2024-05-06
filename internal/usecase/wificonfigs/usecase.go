@@ -89,7 +89,7 @@ func (uc *UseCase) Update(ctx context.Context, d *entity.WirelessConfig) (*entit
 		return nil, ErrDatabase.Wrap("Update", "uc.repo.Update", err)
 	}
 
-	updatedConfig, err := uc.repo.GetByName(ctx, d.ProfileName, "")
+	updatedConfig, err := uc.repo.GetByName(ctx, d.ProfileName, d.TenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func (uc *UseCase) Insert(ctx context.Context, d *entity.WirelessConfig) (*entit
 		return nil, ErrDatabase.Wrap("Insert", "uc.repo.Insert", err)
 	}
 
-	insertedConfig, err := uc.repo.GetByName(ctx, d.ProfileName, "")
+	insertedConfig, err := uc.repo.GetByName(ctx, d.ProfileName, d.TenantID)
 	if err != nil {
 		return nil, err
 	}
