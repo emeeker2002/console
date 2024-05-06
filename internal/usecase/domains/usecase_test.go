@@ -3,13 +3,13 @@ package domains_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/domains"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 )
@@ -17,10 +17,6 @@ import (
 var (
 	errInternalServerErr = errors.New("internal server error")
 	errDB                = errors.New("database error")
-	errNotFound          = errors.New("domain not found")
-	errGetByName         = fmt.Errorf("DomainsUseCase - GetByName - s.repo.GetByName: domain not found")
-	errDelete            = fmt.Errorf("DomainsUseCase - Delete - s.repo.Delete: domain not found")
-	errDomainSuffix      = fmt.Errorf("DomainsUseCase - GetDomainByDomainSuffix - s.repo.GetDomainByDomainSuffix: domain not found")
 )
 
 type test struct {
@@ -67,7 +63,7 @@ func TestGetCount(t *testing.T) {
 				repo.EXPECT().GetCount(context.Background(), "").Return(0, errInternalServerErr)
 			},
 			res: 0,
-			err: errInternalServerErr,
+			err: devices.ErrDatabase,
 		},
 	}
 
@@ -83,8 +79,8 @@ func TestGetCount(t *testing.T) {
 
 			res, err := useCase.GetCount(context.Background(), "")
 
-			require.Equal(t, res, tc.res)
-			require.ErrorIs(t, err, tc.err)
+			require.Equal(t, tc.res, res)
+			require.IsType(t, tc.err, err)
 		})
 	}
 }
@@ -201,10 +197,10 @@ func TestGetDomainByDomainSuffix(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					GetDomainByDomainSuffix(context.Background(), "unknown.com", "tenant-id-456").
-					Return(nil, errNotFound)
+					Return(nil, nil)
 			},
 			res: nil,
-			err: errDomainSuffix,
+			err: domains.ErrNotFound,
 		},
 	}
 
@@ -239,7 +235,7 @@ func TestGetDomainByDomainSuffix(t *testing.T) {
 func TestGetByName(t *testing.T) {
 	t.Parallel()
 
-	domain := entity.Domain{
+	domain := &entity.Domain{
 		ProfileName:                   "test-domain",
 		DomainSuffix:                  "test-domain",
 		ProvisioningCert:              "test-cert",
@@ -259,9 +255,9 @@ func TestGetByName(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					GetByName(context.Background(), "test-domain", "tenant-id-456").
-					Return(&domain, nil)
+					Return(domain, nil)
 			},
-			res: &domain,
+			res: domain,
 			err: nil,
 		},
 		{
@@ -273,10 +269,10 @@ func TestGetByName(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					GetByName(context.Background(), "unknown-domain", "tenant-id-456").
-					Return((*entity.Domain)(nil), errNotFound)
+					Return(nil, nil)
 			},
 			res: (*entity.Domain)(nil),
-			err: errGetByName,
+			err: domains.ErrNotFound,
 		},
 	}
 
@@ -315,7 +311,6 @@ func TestDelete(t *testing.T) {
 					Delete(context.Background(), "example-domain", "tenant-id-456").
 					Return(true, nil)
 			},
-			res: true,
 			err: nil,
 		},
 		{
@@ -325,10 +320,9 @@ func TestDelete(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					Delete(context.Background(), "nonexistent-domain", "tenant-id-456").
-					Return(false, errNotFound)
+					Return(false, nil)
 			},
-			res: false,
-			err: errDelete,
+			err: domains.ErrNotFound,
 		},
 	}
 
@@ -341,9 +335,7 @@ func TestDelete(t *testing.T) {
 
 			tc.mock(repo)
 
-			result, err := useCase.Delete(context.Background(), tc.domainName, tc.tenantID)
-
-			require.Equal(t, tc.res, result)
+			err := useCase.Delete(context.Background(), tc.domainName, tc.tenantID)
 
 			if tc.err != nil {
 				require.Error(t, err)
@@ -371,8 +363,11 @@ func TestUpdate(t *testing.T) {
 				repo.EXPECT().
 					Update(context.Background(), domain).
 					Return(true, nil)
+				repo.EXPECT().
+					GetByName(context.Background(), domain.ProfileName, domain.TenantID).
+					Return(domain, nil)
 			},
-			res: true,
+			res: domain,
 			err: nil,
 		},
 		{
@@ -382,8 +377,8 @@ func TestUpdate(t *testing.T) {
 					Update(context.Background(), domain).
 					Return(false, errInternalServerErr)
 			},
-			res: false,
-			err: errInternalServerErr,
+			res: (*entity.Domain)(nil),
+			err: domains.ErrDatabase,
 		},
 	}
 
@@ -399,7 +394,7 @@ func TestUpdate(t *testing.T) {
 			result, err := useCase.Update(context.Background(), domain)
 
 			require.Equal(t, tc.res, result)
-			require.ErrorIs(t, err, tc.err)
+			require.IsType(t, tc.err, err)
 		})
 	}
 }
@@ -424,8 +419,11 @@ func TestInsert(t *testing.T) {
 				repo.EXPECT().
 					Insert(context.Background(), domain).
 					Return("unique-domain-id", nil)
+				repo.EXPECT().
+					GetByName(context.Background(), domain.ProfileName, domain.TenantID).
+					Return(domain, nil)
 			},
-			res: "unique-domain-id",
+			res: domain,
 			err: nil,
 		},
 		{
@@ -435,8 +433,8 @@ func TestInsert(t *testing.T) {
 					Insert(context.Background(), domain).
 					Return("", errInternalServerErr)
 			},
-			res: "",
-			err: errInternalServerErr,
+			res: (*entity.Domain)(nil),
+			err: domains.ErrDatabase,
 		},
 	}
 

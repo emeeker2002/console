@@ -65,7 +65,7 @@ func TestGetCount(t *testing.T) {
 				repo.EXPECT().GetCount(context.Background(), "").Return(0, errInternalServerErr)
 			},
 			res: 0,
-			err: errInternalServerErr,
+			err: profiles.ErrDatabase,
 		},
 	}
 
@@ -80,8 +80,8 @@ func TestGetCount(t *testing.T) {
 
 			res, err := useCase.GetCount(context.Background(), "")
 
-			require.Equal(t, res, tc.res)
-			require.ErrorIs(t, err, tc.err)
+			require.Equal(t, tc.res, res)
+			require.IsType(t, tc.err, err)
 		})
 	}
 }
@@ -167,7 +167,7 @@ func TestGet(t *testing.T) {
 func TestGetByName(t *testing.T) {
 	t.Parallel()
 
-	profile := entity.Profile{
+	profile := &entity.Profile{
 		ProfileName: "test-profile",
 		TenantID:    "tenant-id-456",
 		Version:     "1.0.0",
@@ -197,10 +197,10 @@ func TestGetByName(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					GetByName(context.Background(), "unknown-profile", "tenant-id-456").
-					Return(entity.Profile{}, errNotFound)
+					Return(nil, nil)
 			},
-			res: entity.Profile{},
-			err: errGetByName,
+			res: (*entity.Profile)(nil),
+			err: profiles.ErrNotFound,
 		},
 	}
 
@@ -238,7 +238,6 @@ func TestDelete(t *testing.T) {
 					Delete(context.Background(), "example-profile", "tenant-id-456").
 					Return(true, nil)
 			},
-			res: true,
 			err: nil,
 		},
 		{
@@ -248,10 +247,9 @@ func TestDelete(t *testing.T) {
 			mock: func(repo *MockRepository) {
 				repo.EXPECT().
 					Delete(context.Background(), "nonexistent-profile", "tenant-id-456").
-					Return(false, errNotFound)
+					Return(false, nil)
 			},
-			res: false,
-			err: errDelete,
+			err: profiles.ErrNotFound,
 		},
 	}
 
@@ -263,9 +261,7 @@ func TestDelete(t *testing.T) {
 
 			tc.mock(repo)
 
-			result, err := useCase.Delete(context.Background(), tc.profileName, tc.tenantID)
-
-			require.Equal(t, tc.res, result)
+			err := useCase.Delete(context.Background(), tc.profileName, tc.tenantID)
 
 			if tc.err != nil {
 				require.Error(t, err)
@@ -293,8 +289,11 @@ func TestUpdate(t *testing.T) {
 				repo.EXPECT().
 					Update(context.Background(), profile).
 					Return(true, nil)
+				repo.EXPECT().
+					GetByName(context.Background(), profile.ProfileName, profile.TenantID).
+					Return(profile, nil)
 			},
-			res: true,
+			res: profile,
 			err: nil,
 		},
 		{
@@ -304,8 +303,8 @@ func TestUpdate(t *testing.T) {
 					Update(context.Background(), profile).
 					Return(false, errInternalServerErr)
 			},
-			res: false,
-			err: errInternalServerErr,
+			res: (*entity.Profile)(nil),
+			err: profiles.ErrDatabase,
 		},
 	}
 
@@ -320,7 +319,7 @@ func TestUpdate(t *testing.T) {
 			result, err := useCase.Update(context.Background(), profile)
 
 			require.Equal(t, tc.res, result)
-			require.ErrorIs(t, err, tc.err)
+			require.IsType(t, err, tc.err)
 		})
 	}
 }
@@ -341,8 +340,11 @@ func TestInsert(t *testing.T) {
 				repo.EXPECT().
 					Insert(context.Background(), profile).
 					Return("unique-profile-id", nil)
+				repo.EXPECT().
+					GetByName(context.Background(), profile.ProfileName, profile.TenantID).
+					Return(profile, nil)
 			},
-			res: "unique-profile-id",
+			res: profile,
 			err: nil,
 		},
 		{
@@ -352,8 +354,8 @@ func TestInsert(t *testing.T) {
 					Insert(context.Background(), profile).
 					Return("", errInternalServerErr)
 			},
-			res: "",
-			err: errInternalServerErr,
+			res: (*entity.Profile)(nil),
+			err: profiles.ErrDatabase,
 		},
 	}
 
