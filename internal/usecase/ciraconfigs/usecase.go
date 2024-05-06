@@ -2,7 +2,6 @@ package ciraconfigs
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto"
@@ -15,12 +14,6 @@ type UseCase struct {
 	repo Repository
 	log  logger.Interface
 }
-
-var (
-	ErrDomainsUseCase = consoleerrors.CreateConsoleError("CIRAConfigsUseCase")
-	ErrDatabase       = consoleerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("CIRAConfigsUseCase")}
-	ErrNotFound       = consoleerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("CIRAConfigsUseCase")}
-)
 
 var (
 	ErrDomainsUseCase = consoleerrors.CreateConsoleError("CIRAConfigsUseCase")
@@ -77,17 +70,10 @@ func (uc *UseCase) GetByName(ctx context.Context, configName, tenantID string) (
 
 func (uc *UseCase) Delete(ctx context.Context, configName, tenantID string) error {
 	isSuccessful, err := uc.repo.Delete(ctx, configName, tenantID)
-func (uc *UseCase) Delete(ctx context.Context, configName, tenantID string) error {
-	isSuccessful, err := uc.repo.Delete(ctx, configName, tenantID)
 	if err != nil {
 		return ErrDatabase.Wrap("Delete", "uc.repo.Delete", err)
 	}
 
-	if !isSuccessful {
-		return ErrNotFound
-	}
-
-	return nil
 	if !isSuccessful {
 		return ErrNotFound
 	}

@@ -28,7 +28,6 @@ type DB struct {
 
 	Builder squirrel.StatementBuilderType
 	Pool    *sql.DB
-	// Pool    *pgxpool.Pool
 }
 
 // New -.
@@ -50,29 +49,6 @@ func New(url string, opts ...Option) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	// poolConfig, err := pgxpool.ParseConfig(url)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("postgres - NewPostgres - pgxpool.ParseConfig: %w", err)
-	// }
-
-	// poolConfig.MaxConns = int32(pg.maxPoolSize)
-
-	// for pg.connAttempts > 0 {
-	// 	pg.Pool, err = pgxpool.NewWithConfig(context.Background(), poolConfig)
-	// 	if err == nil {
-	// 		break
-	// 	}
-
-	// 	log.Printf("Postgres is trying to connect, attempts left: %d", pg.connAttempts)
-
-	// 	time.Sleep(pg.connTimeout)
-
-	// 	pg.connAttempts--
-	// }
-
-	// if err != nil {
-	// 	return nil, fmt.Errorf("postgres - NewPostgres - connAttempts == 0: %w", err)
-	// }
 
 	return pg, nil
 }

@@ -2,10 +2,9 @@ package postgresdb
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
-
-	"github.com/jackc/pgx/v5"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
@@ -44,7 +43,7 @@ func (r *DomainRepo) GetCount(ctx context.Context, tenantID string) (int, error)
 
 	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil
 		}
 
@@ -124,7 +123,7 @@ func (r *DomainRepo) GetDomainByDomainSuffix(ctx context.Context, domainSuffix, 
 
 	err = row.Scan(&d.ProfileName, &d.DomainSuffix, &d.ProvisioningCert, &d.ProvisioningCertStorageFormat, &d.ProvisioningCertPassword, &d.TenantID, &d.Version)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 
@@ -137,15 +136,13 @@ func (r *DomainRepo) GetDomainByDomainSuffix(ctx context.Context, domainSuffix, 
 // GetByName -.
 func (r *DomainRepo) GetByName(ctx context.Context, domainName, tenantID string) (*entity.Domain, error) {
 	sqlQuery, args, err := r.Builder.
-		Select(`
-        name,
-				domain_suffix,
-				provisioning_cert,
-				provisioning_cert_storage_format,
-				provisioning_cert_key,
-				tenant_id,
-        CAST(xmin as text) as xmin
-    `).
+		Select(
+			"name",
+			"domain_suffix",
+			"provisioning_cert_storage_format",
+			"tenant_id",
+			"CAST(xmin as text) as xmin",
+		).
 		From("domains").
 		Where("name = ? AND tenant_id = ?", domainName, tenantID).
 		ToSql()
@@ -159,7 +156,7 @@ func (r *DomainRepo) GetByName(ctx context.Context, domainName, tenantID string)
 
 	err = row.Scan(&d.ProfileName, &d.DomainSuffix, &d.ProvisioningCertStorageFormat, &d.TenantID, &d.Version)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 

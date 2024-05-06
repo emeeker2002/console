@@ -2,9 +2,8 @@ package postgresdb
 
 import (
 	"context"
+	"database/sql"
 	"errors"
-
-	"github.com/jackc/pgx/v5"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
@@ -46,7 +45,7 @@ func (r *ProfileRepo) GetCount(ctx context.Context, tenantID string) (int, error
 
 	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil
 		}
 
@@ -202,7 +201,7 @@ func (r *ProfileRepo) Delete(ctx context.Context, profileName, tenantID string) 
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return false, fmt.Errorf("ProfileRepo - Delete - res.RowsAffected: %w", err)
+		return false, ErrProfileDatabase.Wrap("Delete", "res.RowsAffected", err)
 	}
 
 	return rowsAffected > 0, nil
@@ -244,7 +243,7 @@ func (r *ProfileRepo) Update(ctx context.Context, p *entity.Profile) (bool, erro
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return false, fmt.Errorf("ProfileRepo - Update - res.RowsAffected: %w", err)
+		return false, ErrProfileDatabase.Wrap("Update", "res.RowsAffected", err)
 	}
 
 	return rowsAffected > 0, nil

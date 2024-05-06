@@ -2,10 +2,8 @@ package postgresdb
 
 import (
 	"context"
+	"database/sql"
 	"errors"
-
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
@@ -44,7 +42,7 @@ func (r *DeviceRepo) GetCount(ctx context.Context, tenantID string) (int, error)
 
 	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil
 		}
 
@@ -162,7 +160,7 @@ func (r *DeviceRepo) GetByID(ctx context.Context, guid, tenantID string) (*entit
 
 func (r *DeviceRepo) GetDistinctTags(ctx context.Context, tenantID string) ([]string, error) {
 	sqlQuery, _, err := r.Builder.
-		Select("DISTINCT unnest(tags) as tag").
+		Select("DISTINCT tags as tag").
 		From("devices").
 		Where("tenantid = ?", tenantID).
 		ToSql()
@@ -268,7 +266,7 @@ func (r *DeviceRepo) Delete(ctx context.Context, guid, tenantID string) (bool, e
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return false, fmt.Errorf("DeviceRepo - Delete - res.RowsAffected: %w", err)
+		return false, ErrDeviceDatabase.Wrap("Delete", "res.RowsAffected", err)
 	}
 
 	return rowsAffected > 0, nil
@@ -305,7 +303,7 @@ func (r *DeviceRepo) Update(ctx context.Context, d *entity.Device) (bool, error)
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return false, fmt.Errorf("DeviceRepo - Delete - res.RowsAffected: %w", err)
+		return false, ErrDeviceDatabase.Wrap("Delete", "res.RowsAffected", err)
 	}
 
 	return rowsAffected > 0, nil
@@ -313,8 +311,6 @@ func (r *DeviceRepo) Update(ctx context.Context, d *entity.Device) (bool, error)
 
 // Insert -.
 func (r *DeviceRepo) Insert(ctx context.Context, d *entity.Device) (string, error) {
-	d.GUID = uuid.New().String()
-
 	sqlQuery, args, err := r.Builder.
 		Insert("devices").
 		Columns("guid", "hostname", "tags", "mpsinstance", "connectionstatus", "mpsusername", "tenantid", "friendlyname", "dnssuffix", "deviceinfo", "username", "password", "usetls", "allowselfsigned").

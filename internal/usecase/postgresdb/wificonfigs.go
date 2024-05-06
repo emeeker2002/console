@@ -2,10 +2,9 @@ package postgresdb
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
-
-	"github.com/jackc/pgx/v5"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
@@ -44,7 +43,7 @@ func (r *WirelessRepo) CheckProfileExists(ctx context.Context, profileName, tena
 
 	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
 		}
 
@@ -69,7 +68,7 @@ func (r *WirelessRepo) GetCount(ctx context.Context, tenantID string) (int, erro
 
 	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil
 		}
 

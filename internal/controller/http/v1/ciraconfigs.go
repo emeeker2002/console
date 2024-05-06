@@ -55,6 +55,8 @@ func (r *ciraConfigRoutes) get(c *gin.Context) {
 		if err != nil {
 			r.l.Error(err, "http - CIRA configs - v1 - getCount")
 			errorResponse(c, err)
+
+			return
 		}
 
 		countResponse := CIRAConfigCountResponse{

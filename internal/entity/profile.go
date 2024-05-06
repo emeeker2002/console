@@ -10,7 +10,7 @@ type Profile struct {
 	Activation                 string
 	MEBXPassword               string
 	GenerateRandomMEBxPassword bool
-	Tags                       []string
+	Tags                       string
 	DhcpEnabled                bool
 	IPSyncEnabled              bool
 	LocalWifiSyncEnabled       bool

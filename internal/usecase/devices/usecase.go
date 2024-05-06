@@ -55,6 +55,9 @@ func New(r Repository, d Management, redirection Redirection, log logger.Interfa
 // convert dto.Device to entity.Device
 func (uc *UseCase) dtoToEntity(d *dto.Device) *entity.Device {
 	// convert []string to comma separated string
+	if d.Tags == nil {
+		d.Tags = []string{}
+	}
 	tags := strings.Join(d.Tags, ", ")
 
 	d1 := &entity.Device{
@@ -63,7 +66,7 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) *entity.Device {
 		Hostname:         d.Hostname,
 		GUID:             d.GUID,
 		Mpsusername:      d.Mpsusername,
-		Tags:             tags,
+		Tags:             &tags,
 		TenantID:         d.TenantID,
 		FriendlyName:     d.FriendlyName,
 		DNSSuffix:        d.DNSSuffix,
@@ -82,8 +85,13 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) *entity.Device {
 
 // convert entity.Device to dto.Device
 func (uc *UseCase) entityToDTO(d *entity.Device) *dto.Device {
+
+	if d.Tags == nil {
+		d.Tags = new(string)
+	}
+
 	// convert comma separated string to []string
-	tags := strings.Split(d.Tags, ",")
+	tags := strings.Split(*d.Tags, ",")
 
 	d1 := &dto.Device{
 		ConnectionStatus: d.ConnectionStatus,

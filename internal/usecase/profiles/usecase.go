@@ -2,6 +2,7 @@ package profiles
 
 import (
 	"context"
+	"strings"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto"
@@ -122,8 +123,11 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Profile) (*dto.Profile, er
 	return d2, nil
 }
 
-// convert dto.Domain to entity.Domain
+// convert dto.Profile to entity.Profile
 func (uc *UseCase) dtoToEntity(d *dto.Profile) *entity.Profile {
+	// convert []string to comma separated string
+	tags := strings.Join(d.Tags, ", ")
+
 	d1 := &entity.Profile{
 		ProfileName:                d.ProfileName,
 		AMTPassword:                d.AMTPassword,
@@ -134,7 +138,7 @@ func (uc *UseCase) dtoToEntity(d *dto.Profile) *entity.Profile {
 		Activation:                 d.Activation,
 		MEBXPassword:               d.MEBXPassword,
 		GenerateRandomMEBxPassword: d.GenerateRandomMEBxPassword,
-		Tags:                       d.Tags,
+		Tags:                       tags,
 		DhcpEnabled:                d.DhcpEnabled,
 		IPSyncEnabled:              d.IPSyncEnabled,
 		LocalWifiSyncEnabled:       d.LocalWifiSyncEnabled,
@@ -152,8 +156,11 @@ func (uc *UseCase) dtoToEntity(d *dto.Profile) *entity.Profile {
 	return d1
 }
 
-// convert entity.Domain to dto.Domain
+// convert entity.Profile to dto.Profile
 func (uc *UseCase) entityToDTO(d *entity.Profile) *dto.Profile {
+	// convert comma separated string to []string
+	tags := strings.Split(d.Tags, ",")
+
 	d1 := &dto.Profile{
 		ProfileName:                d.ProfileName,
 		AMTPassword:                d.AMTPassword,
@@ -164,7 +171,7 @@ func (uc *UseCase) entityToDTO(d *entity.Profile) *dto.Profile {
 		Activation:                 d.Activation,
 		MEBXPassword:               d.MEBXPassword,
 		GenerateRandomMEBxPassword: d.GenerateRandomMEBxPassword,
-		Tags:                       d.Tags,
+		Tags:                       tags,
 		DhcpEnabled:                d.DhcpEnabled,
 		IPSyncEnabled:              d.IPSyncEnabled,
 		LocalWifiSyncEnabled:       d.LocalWifiSyncEnabled,

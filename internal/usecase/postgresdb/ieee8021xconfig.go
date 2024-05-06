@@ -2,9 +2,8 @@ package postgresdb
 
 import (
 	"context"
+	"database/sql"
 	"errors"
-
-	"github.com/jackc/pgx/v5"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
@@ -43,7 +42,7 @@ func (r *IEEE8021xRepo) CheckProfileExists(ctx context.Context, profileName, ten
 
 	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
 		}
 
@@ -68,7 +67,7 @@ func (r *IEEE8021xRepo) GetCount(ctx context.Context, tenantID string) (int, err
 
 	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil
 		}
 
@@ -183,7 +182,7 @@ func (r *IEEE8021xRepo) Delete(ctx context.Context, profileName, tenantID string
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return false, fmt.Errorf("IEEE8021xRepo - Delete - res.RowsAffected: %w", err)
+		return false, ErrIEEE8021xDatabase.Wrap("Delete", "res.RowsAffected", err)
 	}
 
 	return rowsAffected > 0, nil
@@ -215,7 +214,7 @@ func (r *IEEE8021xRepo) Update(ctx context.Context, p *entity.IEEE8021xConfig) (
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		return false, fmt.Errorf("IEEE8021xRepo - Update - res.RowsAffected: %w", err)
+		return false, ErrIEEE8021xDatabase.Wrap("Update", "res.RowsAffected", err)
 	}
 
 	return rowsAffected > 0, nil
