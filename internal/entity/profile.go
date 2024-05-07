@@ -28,8 +28,8 @@ type Profile struct {
 	TLSSigningAuthority        string               `json:"tlsSigningAuthority,omitempty" binding:"omitempty,oneof=SelfSigned MicrosoftCA" example:"SelfSigned"`
 	UserConsent                string               `json:"userConsent,omitempty" example:"All"`
 	IDEREnabled                bool                 `json:"iderEnabled,omitempty" example:"true"`
-	KVMEnabled                 bool                 `json:"kvmEnabled,omitempty" example:"true"`
-	SOLEnabled                 bool                 `json:"solEnabled,omitempty" example:"true"`
+	KVMEnabled                 bool                 `json:"kvmEnabled,omitempty" binding:"oneof=true false" example:"true"`
+	SOLEnabled                 bool                 `json:"solEnabled,omitempty" binding:"oneof=true false" example:"true"`
 	Ieee8021xProfileName       *string              `json:"ieee8021xProfileName,omitempty" example:"My Profile"`
 	Ieee8021xProfileObject     *IEEE8021xConfig     `json:"ieee8021xProfileObject,omitempty"`
 	Version                    string               `json:"version,omitempty" example:"1.0.0"`
